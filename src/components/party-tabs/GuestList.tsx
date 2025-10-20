@@ -320,20 +320,40 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
                 </div>
               </div>
 
-              {guest.user_id === user?.id && guest.status === 'invited' && (
+              {(guest.user_id === user?.id || isCreator) && (
                 <div className="flex space-x-2">
-                  <button
-                    onClick={() => updateStatus(guest.id, 'confirmed')}
-                    className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition text-sm"
-                  >
-                    Accept
-                  </button>
-                  <button
-                    onClick={() => updateStatus(guest.id, 'declined')}
-                    className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm"
-                  >
-                    Decline
-                  </button>
+                  {guest.status !== 'confirmed' && (
+                    <button
+                      onClick={() => updateStatus(guest.id, 'confirmed')}
+                      className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition text-sm"
+                    >
+                      {guest.user_id === user?.id ? 'Accept' : 'Set Confirmed'}
+                    </button>
+                  )}
+                  {guest.status !== 'declined' && (
+                    <button
+                      onClick={() => updateStatus(guest.id, 'declined')}
+                      className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm"
+                    >
+                      {guest.user_id === user?.id ? 'Decline' : 'Set Declined'}
+                    </button>
+                  )}
+                  {guest.status !== 'invited' && guest.user_id === user?.id && (
+                    <button
+                      onClick={() => updateStatus(guest.id, 'invited')}
+                      className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-sm"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  {isCreator && guest.status !== 'invited' && (
+                    <button
+                      onClick={() => updateStatus(guest.id, 'invited')}
+                      className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-sm"
+                    >
+                      Reset to Pending
+                    </button>
+                  )}
                 </div>
               )}
             </div>
