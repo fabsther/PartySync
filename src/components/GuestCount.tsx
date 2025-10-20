@@ -49,7 +49,7 @@ export function GuestCount({ partyId }: GuestCountProps) {
       <div className="text-white">
         <span className="font-bold">{totalWithCompanions}</span>
         <span className="text-neutral-400 text-sm ml-1">
-          total 
+          total ({confirmedGuests} guest{confirmedGuests !== 1 ? 's' : ''})
         </span>
       </div>
     </div>

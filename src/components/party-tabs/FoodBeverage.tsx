@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, DollarSign } from 'lucide-react';
+import { Plus, DollarSign, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -159,6 +159,23 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
     }
   };
 
+  const deleteFoodItem = async (foodItemId: string) => {
+    if (user?.id !== creatorId || !window.confirm('Are you sure you want to delete this food item?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('food_items')
+        .delete()
+        .eq('id', foodItemId);
+
+      if (error) throw error;
+      loadFoodItems();
+    } catch (error) {
+      console.error('Error deleting food item:', error);
+      alert('Failed to delete food item.');
+    }
+  };
+
   const calculateTotalCost = () => {
     return foodItems.reduce((total, item) => {
       const multiplier = Math.max(guestCount, 4);
@@ -255,7 +272,6 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
               
               className="px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
             />
-            <span class="unit" className="px-4 py-2" >€</span>
               </div>
           </div>
           <button
@@ -278,7 +294,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
             return (
               <div key={item.id} className="bg-neutral-800 rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="text-white font-medium text-lg">{item.name}</h4>
                     <div className="flex items-center space-x-4 mt-1">
                       <span className="text-sm text-neutral-400 capitalize">{item.category}</span>
@@ -289,6 +305,15 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                       </span>
                     </div>
                   </div>
+                  {user?.id === creatorId && (
+                    <button
+                      onClick={() => deleteFoodItem(item.id)}
+                      className="p-2 text-red-400 hover:bg-red-500/20 rounded transition"
+                      title="Delete item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
                 {otherContributions.length > 0 && (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Check, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -127,6 +127,23 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
     }
   };
 
+  const deleteEquipment = async (equipmentId: string) => {
+    if (!isCreator || !window.confirm('Are you sure you want to delete this equipment item?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('equipment')
+        .delete()
+        .eq('id', equipmentId);
+
+      if (error) throw error;
+      loadEquipment();
+    } catch (error) {
+      console.error('Error deleting equipment:', error);
+      alert('Failed to delete equipment item.');
+    }
+  };
+
   if (loading) {
     return <div className="text-center text-neutral-400">Loading equipment...</div>;
   }
@@ -199,13 +216,24 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
                 }`}
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="text-white font-medium">{item.name}</h4>
                     <span className="text-xs text-neutral-500 capitalize">{item.category}</span>
                   </div>
-                  {contributors.length > 0 && (
-                    <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {contributors.length > 0 && (
+                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    )}
+                    {isCreator && (
+                      <button
+                        onClick={() => deleteEquipment(item.id)}
+                        className="p-1 text-red-400 hover:bg-red-500/20 rounded transition"
+                        title="Delete item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {contributors.length > 0 && (
