@@ -225,7 +225,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
 
       const { error: deleteRequestError } = await supabase
         .from('car_sharing')
-        .delete()
+        .update({ status: 'completed' })
         .eq('id', requestId);
 
       if (deleteRequestError) throw deleteRequestError;
@@ -414,7 +414,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
     try {
       const { error } = await supabase
         .from('car_sharing')
-        .delete()
+        .update({ status: 'cancelled' })
         .eq('id', requestId);
 
       if (error) throw error;
