@@ -39,6 +39,14 @@ interface CarSharingProps {
   partyId: string;
 }
 
+function buildMapsAndWazeLinks(location: string) {
+  const q = encodeURIComponent(location);
+  return {
+    maps: `https://www.google.com/maps/search/?api=1&query=${q}`,
+    waze: `https://waze.com/ul?q=${q}`,
+  };
+}
+
 export function CarSharing({ partyId }: CarSharingProps) {
   const [offers, setOffers] = useState<RideOffer[]>([]);
   const [requests, setRequests] = useState<RideRequest[]>([]);
@@ -169,6 +177,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
         type: formData.type,
         departure_location: formData.departure_location,
         status: 'active',
+        created_by: user.id,
       };
 
       if (formData.type === 'offer') {
@@ -270,15 +279,27 @@ export function CarSharing({ partyId }: CarSharingProps) {
 
       if (updateError) throw updateError;
 
-      const { error: insertError } = await supabase
+      const { data: existing, error: existsErr } = await supabase
         .from('car_sharing')
-        .insert({
-          party_id: partyId,
-          user_id: passenger.userId,
-          type: 'request',
-          departure_location: passenger.pickupLocation,
-          status: 'active',
-        });
+        .select('id')
+        .eq('party_id', partyId)
+        .eq('user_id', passenger.userId)
+        .eq('type', 'request')
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (!existsErr && !existing) {
+        const { error: insertError } = await supabase
+          .from('car_sharing')
+          .insert({
+            party_id: partyId,
+            user_id: passenger.userId,
+            type: 'request',
+            departure_location: passenger.pickupLocation,
+            status: 'active',
+            created_by: user!.id, // NEW
+          });
+      }
 
       if (insertError) throw insertError;
 
@@ -329,6 +350,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
           type: 'request',
           departure_location: myPassenger.pickupLocation,
           status: 'active',
+          created_by: user!.id,
         });
 
       if (insertError) throw insertError;
@@ -357,78 +379,73 @@ export function CarSharing({ partyId }: CarSharingProps) {
   const cancelOffer = async (offer: RideOffer) => {
     if (actionInFlight) return;
     if (!confirm('Cancel this ride offer? All passengers will be notified.')) return;
-
+  
     setActionInFlight(true);
     try {
+      // 1) Soft-cancel the offer
       const { error: updateError } = await supabase
         .from('car_sharing')
         .update({ status: 'cancelled' })
         .eq('id', offer.id);
-
+  
       if (updateError) throw updateError;
-
+  
+      // 2) Fan-out requests for passengers, but avoid duplicates
       if (offer.passengers.length > 0) {
-        const newRequests = offer.passengers.map(p => ({
-          party_id: partyId,
-          user_id: p.userId,
-          type: 'request',
-          departure_location: p.pickupLocation,
-          status: 'active',
-        }));
-
-        const { error: insertError } = await supabase
+        const passengerIds = offer.passengers.map((p) => p.userId);
+  
+        // Fetch existing ACTIVE requests for these passengers in this party (single round-trip)
+        const { data: existingActive, error: existErr } = await supabase
           .from('car_sharing')
-          .insert(newRequests);
-
-        if (insertError) throw insertError;
-
-        offer.passengers.forEach(p => {
+          .select('user_id')
+          .eq('party_id', partyId)
+          .eq('type', 'request')
+          .eq('status', 'active')
+          .in('user_id', passengerIds);
+  
+        if (existErr) throw existErr;
+  
+        const existingSet = new Set((existingActive || []).map((r: any) => r.user_id));
+  
+        const newRequests = offer.passengers
+          .filter((p) => !existingSet.has(p.userId))
+          .map((p) => ({
+            party_id: partyId,
+            user_id: p.userId,
+            type: 'request',
+            departure_location: p.pickupLocation,
+            status: 'active',
+            created_by: offer.user_id, // driver creates on behalf of passengers
+          }));
+  
+        if (newRequests.length > 0) {
+          const { error: insertError } = await supabase
+            .from('car_sharing')
+            .insert(newRequests);
+          if (insertError) throw insertError;
+        }
+  
+        // Notify all passengers (whether a new request was inserted or one already existed)
+        for (const p of offer.passengers) {
           sendLocalNotification(
             'Ride Cancelled',
-            'The ride you were in has been cancelled. A new request has been created for you.',
+            'The ride you were in has been cancelled. A ride request is available for you.',
             { partyId, action: 'ride_cancelled' }
           );
-        });
+        }
       }
-
+  
+      // 3) Notify driver
       sendLocalNotification(
         'Ride Cancelled',
         'Your ride offer has been cancelled.',
         { partyId, action: 'ride_cancel_confirmation' }
       );
-
+  
       await loadAll();
     } catch (error) {
       console.error('Error cancelling offer:', error);
       alert('Failed to cancel ride. Please try again.');
-    } finally {
-      setActionInFlight(false);
-    }
-  };
-
-  const cancelRequest = async (requestId: string) => {
-    if (actionInFlight) return;
-    if (!confirm('Cancel this ride request?')) return;
-
-    setActionInFlight(true);
-    try {
-      const { error } = await supabase
-        .from('car_sharing')
-        .update({ status: 'cancelled' })
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      sendLocalNotification(
-        'Request Cancelled',
-        'Your ride request has been cancelled.',
-        { partyId, action: 'request_cancelled' }
-      );
-
-      await loadAll();
-    } catch (error) {
-      console.error('Error cancelling request:', error);
-      alert('Failed to cancel request. Please try again.');
     } finally {
       setActionInFlight(false);
     }
@@ -567,6 +584,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
             ) : (
               offers.map((offer) => {
                 const availableSeats = offer.capacity - offer.passengers.length;
+                const taken = offer.passengers.length;
                 const isOwner = offer.user_id === user?.id;
 
                 return (
@@ -577,7 +595,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
                       </div>
                       <div className="flex items-center space-x-1 text-sm text-green-400">
                         <Users className="w-4 h-4" />
-                        <span>{availableSeats}/{offer.capacity}</span>
+                        <span>{taken}/{offer.capacity}</span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 text-sm text-neutral-400 mb-3">
@@ -597,9 +615,20 @@ export function CarSharing({ partyId }: CarSharingProps) {
                             <div key={idx} className="flex items-start justify-between bg-neutral-900 p-2 rounded">
                               <div className="flex-1">
                                 <div className="text-white text-sm">{passengerName}</div>
-                                <div className="text-xs text-neutral-500 flex items-center space-x-1">
-                                  <MapPin className="w-3 h-3" />
-                                  <span>{passenger.pickupLocation}</span>
+                                <div className="text-xs text-neutral-500 flex items-center space-x-2">
+                                  <div className="flex items-center space-x-1">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{passenger.pickupLocation}</span>
+                                  </div>
+                                  {passenger.pickupLocation && (() => {
+                                    const { maps, waze } = buildMapsAndWazeLinks(passenger.pickupLocation);
+                                    return (
+                                      <div className="flex items-center space-x-2">
+                                        <a href={maps} target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-300">Google</a>
+                                        <a href={waze} target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-300">Waze</a>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                               {isOwner && !isMe && (
@@ -662,9 +691,20 @@ export function CarSharing({ partyId }: CarSharingProps) {
                     <div className="text-white font-medium mb-2">
                       {request.profiles.full_name || request.profiles.email}
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-neutral-400 mb-3">
-                      <MapPin className="w-4 h-4" />
-                      <span>{request.departure_location}</span>
+                    <div className="flex items-center justify-between text-sm text-neutral-400 mb-3">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>{request.departure_location}</span>
+                      </div>
+                      {request.departure_location && (() => {
+                        const { maps, waze } = buildMapsAndWazeLinks(request.departure_location);
+                        return (
+                          <div className="flex items-center space-x-3 text-xs">
+                            <a href={maps} target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-300">Google</a>
+                            <a href={waze} target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-300">Waze</a>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {!isOwner && userHasActiveOfferWithSeats && (
