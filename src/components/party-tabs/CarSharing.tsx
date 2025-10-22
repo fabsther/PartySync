@@ -242,6 +242,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
         { partyId, action: 'ride_confirmation' }
       );
 
+      setRequests(prev => prev.filter(r => r.id !== requestId));
       await loadAll();
     } catch (error) {
       console.error('Error picking up requester:', error);
@@ -601,7 +602,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
                                   <span>{passenger.pickupLocation}</span>
                                 </div>
                               </div>
-                              {isOwner && (
+                              {isOwner && !isMe && (
                                 <button
                                   onClick={() => kickPassenger(offer.id, { ...passenger, userName: passengerName })}
                                   disabled={actionInFlight}
@@ -611,7 +612,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
                                   <span>Kick</span>
                                 </button>
                               )}
-                              {isMe && !isOwner && (
+                              {isMe && (
                                 <button
                                   onClick={() => leaveRide(offer.id, { ...passenger, userName: passengerName })}
                                   disabled={actionInFlight}
