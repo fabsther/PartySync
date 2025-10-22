@@ -398,24 +398,26 @@ export function CarSharing({ partyId }: CarSharingProps) {
     }
   };
   
-  const cancelRequest = async (requestId: string) => {
+   const cancelRequest = async (requestId: string) => {
     if (actionInFlight) return;
     if (!confirm('Cancel this ride request?')) return;
   
     setActionInFlight(true);
     try {
-      const { error } = await supabase
+      // Important: destructure *both* data and error ON THIS LINE, and only
+      // reference them inside the same try block to avoid scope issues.
+      const { data, error } = await supabase
         .from('car_sharing')
         .update({ status: 'cancelled' })
         .eq('id', requestId)
-        .eq('type', 'request')
-        .eq('party_id', partyId) // helps hit the right row & policy visibility
-        .eq('user_id', user!.id) // satisfies your "Users can update own" + cs_self_rw
+        .eq('type', 'request')          // helps policy match
+        .eq('party_id', partyId)        // helps policy match
+        .eq('user_id', user!.id)        // owner-only update
         .select('id, status')
         .maybeSingle();
-
-      if (error) throw error;
-      if (!data) throw new Error('No row updated (RLS or already not active)');
+  
+      if (error) throw error;           // Supabase error (incl. RLS)
+      if (!data) throw new Error('No row updated (RLS, wrong party, or already not active).');
   
       sendLocalNotification(
         'Request Cancelled',
@@ -423,12 +425,14 @@ export function CarSharing({ partyId }: CarSharingProps) {
         { partyId, action: 'request_cancelled' }
       );
   
-      // Optimistic UI
+      // Optimistic UI removal
       setRequests(prev => prev.filter(r => r.id !== requestId));
+  
       await loadAll();
-    } catch (error: any) {
-      console.error('cancelRequest RLS/DB error:', error?.code, error?.message, error);
-      alert(error?.message || 'Failed to cancel request.');
+    } catch (err: any) {
+      // Log full error with code to spot RLS/constraint issues
+      console.error('cancelRequest error:', err?.code, err?.message, err);
+      alert(err?.message || 'Failed to cancel request.');
     } finally {
       setActionInFlight(false);
     }
