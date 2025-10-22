@@ -261,24 +261,28 @@ export function CarSharing({ partyId }: CarSharingProps) {
     }
   };
 
-  const kickPassenger = async (offerId: string, passenger: Passenger) => {
+    const kickPassenger = async (offerId: string, passenger: Passenger) => {
     if (actionInFlight) return;
     if (!confirm(`Remove ${passenger.userName || 'this passenger'}?`)) return;
-
+  
     setActionInFlight(true);
     try {
       const offer = offers.find(o => o.id === offerId);
-      if (!offer) return;
-
+      if (!offer) throw new Error('Offer not found');
+  
       const updatedPassengers = offer.passengers.filter(p => p.userId !== passenger.userId);
-
+      if (updatedPassengers.length === offer.passengers.length) {
+        throw new Error('Passenger not found or already removed.');
+      }
+  
+      // Update offer passengers
       const { error: updateError } = await supabase
         .from('car_sharing')
         .update({ passengers: updatedPassengers })
         .eq('id', offerId);
-
       if (updateError) throw updateError;
-
+  
+      // Duplicate guard: skip insert if an active request already exists for this (party, user)
       const { data: existing, error: existsErr } = await supabase
         .from('car_sharing')
         .select('id')
@@ -287,9 +291,12 @@ export function CarSharing({ partyId }: CarSharingProps) {
         .eq('type', 'request')
         .eq('status', 'active')
         .maybeSingle();
-
-      if (!existsErr && !existing) {
-        const { error: insertError } = await supabase
+      if (existsErr && existsErr.code !== 'PGRST116') { // ignore \"No rows\" pseudo-error if it shows
+        throw existsErr;
+      }
+  
+      if (!existing) {
+        const { error: insertErr } = await supabase
           .from('car_sharing')
           .insert({
             party_id: partyId,
@@ -297,32 +304,37 @@ export function CarSharing({ partyId }: CarSharingProps) {
             type: 'request',
             departure_location: passenger.pickupLocation,
             status: 'active',
-            created_by: user!.id, // NEW
+            created_by: user!.id,
           });
+        if (insertErr) {
+          // If you created the partial unique index, duplicates may throw 23505.
+          // Uncomment to ignore that case:
+          // if (insertErr.code !== '23505') throw insertErr;
+          throw insertErr;
+        }
       }
-
-      if (insertError) throw insertError;
-
+  
       sendLocalNotification(
         'Removed from Ride',
-        `You've been removed from the ride. A new ride request has been created for you.`,
+        "You've been removed from the ride. A new ride request has been created for you.",
         { partyId, action: 'ride_kicked' }
       );
-
+  
       sendLocalNotification(
         'Passenger Removed',
         `${passenger.userName || 'Passenger'} has been removed from your ride.`,
         { partyId, action: 'ride_kick_confirmation' }
       );
-
+  
       await loadAll();
-    } catch (error) {
-      console.error('Error kicking passenger:', error);
-      alert('Failed to remove passenger. Please try again.');
+    } catch (error: any) {
+      console.error('Error kicking passenger:', error?.message || error);
+      alert('Failed to remove passenger.');
     } finally {
       setActionInFlight(false);
     }
   };
+
 
   const leaveRide = async (offerId: string, myPassenger: Passenger) => {
     if (actionInFlight) return;
@@ -371,6 +383,38 @@ export function CarSharing({ partyId }: CarSharingProps) {
     } catch (error) {
       console.error('Error leaving ride:', error);
       alert('Failed to leave ride. Please try again.');
+    } finally {
+      setActionInFlight(false);
+    }
+  };
+  
+  const cancelRequest = async (requestId: string) => {
+    if (actionInFlight) return;
+    if (!confirm('Cancel this ride request?')) return;
+  
+    setActionInFlight(true);
+    try {
+      const { error } = await supabase
+        .from('car_sharing')
+        .update({ status: 'cancelled' })
+        .eq('id', requestId)
+        .select('id')
+        .maybeSingle();
+  
+      if (error) throw error;
+  
+      sendLocalNotification(
+        'Request Cancelled',
+        'Your ride request has been cancelled.',
+        { partyId, action: 'request_cancelled' }
+      );
+  
+      // Optimistic UI
+      setRequests(prev => prev.filter(r => r.id !== requestId));
+      await loadAll();
+    } catch (error: any) {
+      console.error('Error cancelling request:', error?.message || error);
+      alert('Failed to cancel request.');
     } finally {
       setActionInFlight(false);
     }
