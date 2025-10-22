@@ -228,7 +228,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
       const { error: updateOfferError } = await supabase
         .from('car_sharing')
         .update({ passengers: updatedPassengers })
-        .eq('id', offerId);
+        .eq('id', offerId)
         .eq('type', 'offer')
         .eq('party_id', partyId)
         .eq('user_id', user!.id);
