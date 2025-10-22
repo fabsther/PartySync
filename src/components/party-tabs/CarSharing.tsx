@@ -223,21 +223,31 @@ export function CarSharing({ partyId }: CarSharingProps) {
         joinedAt: new Date().toISOString(),
       };
 
+      // 1) Update the offer (driver owns it) — covered by cs_self_rw / own-update policy
       const updatedPassengers = [...offer.passengers, newPassenger];
-
       const { error: updateOfferError } = await supabase
         .from('car_sharing')
         .update({ passengers: updatedPassengers })
         .eq('id', offerId);
+        .eq('type', 'offer')
+        .eq('party_id', partyId)
+        .eq('user_id', user!.id);
 
       if (updateOfferError) throw updateOfferError;
 
-      const { error: deleteRequestError } = await supabase
+      // 2) Soft-complete the request (driver doesn't own it) — covered by cs_driver_complete_request
+      const { data: completed, error: updateRequestError } = await supabase
         .from('car_sharing')
         .update({ status: 'completed' })
-        .eq('id', requestId);
-
-      if (deleteRequestError) throw deleteRequestError;
+        .eq('id', requestId)
+        .eq('type', 'request')
+        .eq('party_id', partyId)
+        .eq('status', 'active') // USING expects active; WITH CHECK expects completed
+        .select('id, status')
+        .maybeSingle();
+      
+      if (updateRequestError) throw updateRequestError;
+      if (!completed) throw new Error('Request not active or RLS blocked');
 
       sendLocalNotification(
         'Ride Confirmed',
@@ -398,10 +408,14 @@ export function CarSharing({ partyId }: CarSharingProps) {
         .from('car_sharing')
         .update({ status: 'cancelled' })
         .eq('id', requestId)
-        .select('id')
+        .eq('type', 'request')
+        .eq('party_id', partyId) // helps hit the right row & policy visibility
+        .eq('user_id', user!.id) // satisfies your "Users can update own" + cs_self_rw
+        .select('id, status')
         .maybeSingle();
-  
+
       if (error) throw error;
+      if (!data) throw new Error('No row updated (RLS or already not active)');
   
       sendLocalNotification(
         'Request Cancelled',
@@ -413,8 +427,8 @@ export function CarSharing({ partyId }: CarSharingProps) {
       setRequests(prev => prev.filter(r => r.id !== requestId));
       await loadAll();
     } catch (error: any) {
-      console.error('Error cancelling request:', error?.message || error);
-      alert('Failed to cancel request.');
+      console.error('cancelRequest RLS/DB error:', error?.code, error?.message, error);
+      alert(error?.message || 'Failed to cancel request.');
     } finally {
       setActionInFlight(false);
     }
