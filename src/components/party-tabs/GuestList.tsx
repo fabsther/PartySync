@@ -139,22 +139,29 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
 
   const addCompanion = async () => {
     if (!user || !newCompanionName.trim()) return;
-
+  
     const myGuest = guests.find(g => g.user_id === user.id);
     if (!myGuest) return;
-
+  
     setAddingCompanion(true);
     try {
+      const name = newCompanionName.trim();
       const { error } = await supabase
         .from('guest_companions')
-        .insert({
-          party_guest_id: myGuest.id,
-          name: newCompanionName.trim()
-        });
-
+        .insert({ party_guest_id: myGuest.id, name });
       if (error) throw error;
+  
       setNewCompanionName('');
       loadGuests();
+  
+      // 📣 Notifie l’organisateur (creator)
+      await sendRemoteNotification(
+        creatorId,
+        '➕ Nouveau accompagnant',
+        `${(user?.email || 'Guest')} a ajouté « ${name} » à sa liste.`,
+        { partyId, action: 'companion_added', partyGuestId: myGuest.id, name },
+        `/party/${partyId}?tab=guests`
+      );
     } catch (error) {
       console.error('Error adding companion:', error);
       alert('Failed to add companion.');
@@ -165,13 +172,26 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
 
   const removeCompanion = async (companionId: string) => {
     try {
+      // Récupérer le nom pour le message (facultatif)
+      const target = guests
+        .flatMap(g => g.guest_companions || [])
+        .find(c => c.id === companionId);
+  
       const { error } = await supabase
         .from('guest_companions')
         .delete()
         .eq('id', companionId);
-
       if (error) throw error;
+  
       loadGuests();
+  
+      await sendRemoteNotification(
+        creatorId,
+        '➖ Accompagnant supprimé',
+        `${(user?.email || 'Guest')} a supprimé « ${target?.name || 'un accompagnant'} ».`,
+        { partyId, action: 'companion_removed', companionId },
+        `/party/${partyId}?tab=guests`
+      );
     } catch (error) {
       console.error('Error removing companion:', error);
       alert('Failed to remove companion.');
