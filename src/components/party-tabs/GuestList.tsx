@@ -3,6 +3,7 @@ import { UserPlus, Check, X, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
+import { sendRemoteNotification } from '../../lib/remoteNotify';
 
 interface Companion {
   id: string;
@@ -77,59 +78,62 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
     }
   };
 
-  const updateStatus = async (guestId: string, status: 'confirmed' | 'declined') => {
+  const updateStatus = async (guestId: string, status: 'confirmed' | 'declined' | 'invited') => {
     try {
+      // Récupère la ligne pour connaître le user ciblé + libellés
+      const { data: gRow, error: gErr } = await supabase
+        .from('party_guests')
+        .select('id, user_id, status, profiles(full_name, email), parties:title(parties!inner(title))')
+        .eq('id', guestId)
+        .single();
+      if (gErr) throw gErr;
+  
       const { error } = await supabase
         .from('party_guests')
         .update({ status })
         .eq('id', guestId);
-
       if (error) throw error;
+  
+      // Qui a déclenché l’action ?
+      const actedByGuest = user?.id === gRow.user_id;
+      const actedByCreator = user?.id === creatorId;
+  
+      const guestName = gRow.profiles?.full_name || gRow.profiles?.email || 'Guest';
+      const deepLink = `/party/${partyId}?tab=guests`;
+  
+      // 📣 Compose les messages
+      const statusTxt =
+        status === 'confirmed' ? 'a confirmé sa présence'
+        : status === 'declined' ? 'a décliné l’invitation'
+        : 'est repassé·e en attente';
+  
+      if (actedByGuest) {
+        // Le guest a changé son propre statut → informer l’organisateur
+        await sendRemoteNotification(
+          creatorId,
+          '🧾 Réponse à l’invitation',
+          `${guestName} ${statusTxt}.`,
+          { partyId, action: 'guest_status_update', guestId, newStatus: status },
+          deepLink
+        );
+      } else if (actedByCreator) {
+        // L’organisateur a modifié le statut du guest → informer le guest
+        const body =
+          status === 'confirmed' ? 'Votre présence a été confirmée.'
+          : status === 'declined' ? 'Votre invitation a été marquée comme déclinée.'
+          : 'Votre statut a été réinitialisé en attente.';
+        await sendRemoteNotification(
+          gRow.user_id,
+          '✏️ Mise à jour de votre statut',
+          body,
+          { partyId, action: 'guest_status_admin_update', guestId, newStatus: status },
+          deepLink
+        );
+      }
+  
       loadGuests();
     } catch (error) {
       console.error('Error updating guest status:', error);
-    }
-  };
-
-  const addGuestFromList = async (userId: string) => {
-    setAddingGuest(true);
-
-    try {
-      const { data: partyData } = await supabase
-        .from('parties')
-        .select('title')
-        .eq('id', partyId)
-        .maybeSingle();
-
-      const { error } = await supabase.from('party_guests').insert({
-        party_id: partyId,
-        user_id: userId,
-        status: 'invited',
-      });
-
-      if (error) {
-        if (error.code === '23505') {
-          alert('This person is already invited to the party.');
-        } else {
-          throw error;
-        }
-        return;
-      }
-
-      if (partyData) {
-        sendLocalNotification(
-          'Party Invitation',
-          `You've been invited to ${partyData.title}!`,
-          { partyId, action: 'party_invitation' }
-        );
-      }
-
-      setShowSubscriberList(false);
-      loadGuests();
-    } catch (error) {
-      console.error('Error adding guest:', error);
-    } finally {
-      setAddingGuest(false);
     }
   };
 
