@@ -11,7 +11,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children, activeTab, onTabChange, onCreateParty }: LayoutProps) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth(); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
