@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
-import { useRef } from 'react';
 
 // ============================
 // Types (post-migration: colonnes NUMERIC en DB)
@@ -34,85 +33,6 @@ interface FoodBeverageProps {
   creatorId: string;
 }
 
-// ============================
-// helpers de coalescence : permettent d’envoyer une seule notification pour plusieurs changements rapprochés
-// ============================
-
-// --- Coalescence de notifications (1 seule fois par lot de changements) ---
-const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-const notifCooldownUntil = useRef<number>(0);
-const pendingPlanChange = useRef<boolean>(false);
-
-/**
- * Envoie la notification à tous les guests (invited + confirmed),
- * une seule fois, avec un deep link vers l’onglet Food & Beverage.
- */
-const notifyGuestsFoodPlanUpdated = useCallback(async () => {
-  try {
-    // Charger les invités (invited + confirmed), exclure le créateur
-    const { data: guests, error } = await supabase
-      .from('party_guests')
-      .select('user_id, status')
-      .eq('party_id', partyId)
-      .in('status', ['invited', 'confirmed']);
-    if (error) throw error;
-
-    const uniqueUserIds = Array.from(
-      new Set((guests || []).map(g => g.user_id).filter(uid => !!uid && uid !== creatorId))
-    );
-
-    if (uniqueUserIds.length === 0) return;
-
-    const title = 'Food & drinks mis à jour';
-    const body  = 'L’organisateur a modifié la liste Food & Beverage. Merci de vérifier vos apports.';
-    const url   = `/party/${partyId}?tab=food`;
-
-    await Promise.all(
-      uniqueUserIds.map(uid =>
-        sendRemoteNotification(
-          uid,
-          title,
-          body,
-          { partyId, action: 'food_plan_updated' },
-          url
-        )
-      )
-    );
-  } catch (e) {
-    console.error('notifyGuestsFoodPlanUpdated error:', e);
-  }
-}, [partyId, creatorId]);
-
-/**
- * Programme l’envoi *unique* d’une notification pour un lot de changements :
- * - Debounce 2s pour regrouper plusieurs opérations successives
- * - Cooldown 60s pour éviter le spam si on fait plusieurs lots rapprochés
- */
-const schedulePlanChangeNotification = useCallback(() => {
-  // Ne notifier que si le user est le propriétaire
-  if (user?.id !== creatorId) return;
-
-  pendingPlanChange.current = true;
-
-  // Si un timer de debounce est déjà en cours, ne rien changer (on attend)
-  if (notifTimer.current) return;
-
-  notifTimer.current = setTimeout(async () => {
-    notifTimer.current = null;
-
-    // Rien à notifier ?
-    if (!pendingPlanChange.current) return;
-    pendingPlanChange.current = false;
-
-    // Anti-spam: pas plus d’1 notif par minute
-    const now = Date.now();
-    if (now < notifCooldownUntil.current) return;
-    notifCooldownUntil.current = now + 60_000;
-
-    await notifyGuestsFoodPlanUpdated();
-  }, 2000);
-}, [user?.id, creatorId, notifyGuestsFoodPlanUpdated]);
-
 
 // ============================
 // Defaults (sans category, tout numérique)
@@ -140,6 +60,66 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
     estimated_cost: 0,
   });
   const { user } = useAuth();
+
+  const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifCooldownUntil = useRef<number>(0);
+  const pendingPlanChange = useRef<boolean>(false);
+
+  const notifyGuestsFoodPlanUpdated = useCallback(async () => {
+    try {
+      const { data: guests, error } = await supabase
+        .from('party_guests')
+        .select('user_id, status')
+        .eq('party_id', partyId)
+        .in('status', ['invited', 'confirmed']);
+      if (error) throw error;
+
+      const uniqueUserIds = Array.from(
+        new Set((guests || []).map(g => g.user_id).filter(uid => !!uid && uid !== creatorId))
+      );
+
+      if (uniqueUserIds.length === 0) return;
+
+      const title = 'Food & drinks updated';
+      const body  = 'The organizer has updated the Food & Beverage list. Please check your contributions.';
+      const url   = `/party/${partyId}?tab=food`;
+
+      await Promise.all(
+        uniqueUserIds.map(uid =>
+          sendRemoteNotification(
+            uid,
+            title,
+            body,
+            { partyId, action: 'food_plan_updated' },
+            url
+          )
+        )
+      );
+    } catch (e) {
+      console.error('notifyGuestsFoodPlanUpdated error:', e);
+    }
+  }, [partyId, creatorId]);
+
+  const schedulePlanChangeNotification = useCallback(() => {
+    if (user?.id !== creatorId) return;
+
+    pendingPlanChange.current = true;
+
+    if (notifTimer.current) return;
+
+    notifTimer.current = setTimeout(async () => {
+      notifTimer.current = null;
+
+      if (!pendingPlanChange.current) return;
+      pendingPlanChange.current = false;
+
+      const now = Date.now();
+      if (now < notifCooldownUntil.current) return;
+      notifCooldownUntil.current = now + 60_000;
+
+      await notifyGuestsFoodPlanUpdated();
+    }, 2000);
+  }, [user?.id, creatorId, notifyGuestsFoodPlanUpdated]);
 
   // ============================
   // Formatters
