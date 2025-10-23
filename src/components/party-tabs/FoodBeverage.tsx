@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { sendRemoteNotification } from '../../lib/remoteNotify';
+import { useRef } from 'react';
 
 // ============================
 // Types (post-migration: colonnes NUMERIC en DB)
@@ -31,6 +33,86 @@ interface FoodBeverageProps {
   partyId: string;
   creatorId: string;
 }
+
+// ============================
+// helpers de coalescence : permettent d’envoyer une seule notification pour plusieurs changements rapprochés
+// ============================
+
+// --- Coalescence de notifications (1 seule fois par lot de changements) ---
+const notifTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+const notifCooldownUntil = useRef<number>(0);
+const pendingPlanChange = useRef<boolean>(false);
+
+/**
+ * Envoie la notification à tous les guests (invited + confirmed),
+ * une seule fois, avec un deep link vers l’onglet Food & Beverage.
+ */
+const notifyGuestsFoodPlanUpdated = useCallback(async () => {
+  try {
+    // Charger les invités (invited + confirmed), exclure le créateur
+    const { data: guests, error } = await supabase
+      .from('party_guests')
+      .select('user_id, status')
+      .eq('party_id', partyId)
+      .in('status', ['invited', 'confirmed']);
+    if (error) throw error;
+
+    const uniqueUserIds = Array.from(
+      new Set((guests || []).map(g => g.user_id).filter(uid => !!uid && uid !== creatorId))
+    );
+
+    if (uniqueUserIds.length === 0) return;
+
+    const title = 'Food & drinks mis à jour';
+    const body  = 'L’organisateur a modifié la liste Food & Beverage. Merci de vérifier vos apports.';
+    const url   = `/party/${partyId}?tab=food`;
+
+    await Promise.all(
+      uniqueUserIds.map(uid =>
+        sendRemoteNotification(
+          uid,
+          title,
+          body,
+          { partyId, action: 'food_plan_updated' },
+          url
+        )
+      )
+    );
+  } catch (e) {
+    console.error('notifyGuestsFoodPlanUpdated error:', e);
+  }
+}, [partyId, creatorId]);
+
+/**
+ * Programme l’envoi *unique* d’une notification pour un lot de changements :
+ * - Debounce 2s pour regrouper plusieurs opérations successives
+ * - Cooldown 60s pour éviter le spam si on fait plusieurs lots rapprochés
+ */
+const schedulePlanChangeNotification = useCallback(() => {
+  // Ne notifier que si le user est le propriétaire
+  if (user?.id !== creatorId) return;
+
+  pendingPlanChange.current = true;
+
+  // Si un timer de debounce est déjà en cours, ne rien changer (on attend)
+  if (notifTimer.current) return;
+
+  notifTimer.current = setTimeout(async () => {
+    notifTimer.current = null;
+
+    // Rien à notifier ?
+    if (!pendingPlanChange.current) return;
+    pendingPlanChange.current = false;
+
+    // Anti-spam: pas plus d’1 notif par minute
+    const now = Date.now();
+    if (now < notifCooldownUntil.current) return;
+    notifCooldownUntil.current = now + 60_000;
+
+    await notifyGuestsFoodPlanUpdated();
+  }, 2000);
+}, [user?.id, creatorId, notifyGuestsFoodPlanUpdated]);
+
 
 // ============================
 // Defaults (sans category, tout numérique)
@@ -175,6 +257,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
       const { error } = await supabase.from('food_items').insert(items);
       if (error) throw error;
       await loadFoodItems();
+      schedulePlanChangeNotification();
     } catch (err) {
       console.error('Error adding default food items:', err);
       setError('Failed to add default food list.');
@@ -199,6 +282,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         setNewItem({ name: '', base_quantity: 1, estimated_cost: 0 });
         setShowForm(false);
         await loadFoodItems();
+        schedulePlanChangeNotification(); 
       } catch (err) {
         console.error('Error adding food item:', err);
         setError('Failed to add item.');
@@ -251,6 +335,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         const { error } = await supabase.from('food_items').delete().eq('id', foodItemId);
         if (error) throw error;
         await loadFoodItems();
+        schedulePlanChangeNotification(); 
       } catch (err) {
         console.error('Error deleting food item:', err);
         setError('Failed to delete food item.');
