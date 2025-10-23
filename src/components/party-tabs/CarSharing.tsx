@@ -250,10 +250,12 @@ export function CarSharing({ partyId }: CarSharingProps) {
       if (updateRequestError) throw updateRequestError;
       if (!completed) throw new Error('Request not active or RLS blocked');
 
-      sendLocalNotification(
-        'Ride Confirmed',
-        `You've been picked up by ${offer.profiles.full_name || offer.profiles.email}!`,
-        { partyId, action: 'ride_pickup' }
+      await sendRemoteNotification(
+        request.user_id,
+        'Pris en charge',
+        `Vous avez été pris en charge par ${offer.profiles.full_name || offer.profiles.email}.`,
+        { partyId, action: 'ride_pickup', offerId: offer.id, requestId: request.id },
+        `/carsharing?partyId=${partyId}`
       );
 
       sendLocalNotification(
@@ -325,10 +327,12 @@ export function CarSharing({ partyId }: CarSharingProps) {
         }
       }
   
-      sendLocalNotification(
-        'Removed from Ride',
-        "You've been removed from the ride. A new ride request has been created for you.",
-        { partyId, action: 'ride_kicked' }
+      await sendRemoteNotification(
+        passenger.userId,
+        'Retiré du trajet',
+        'Vous avez été retiré du trajet. Une nouvelle demande a été créée pour vous.',
+        { partyId, action: 'ride_kicked', offerId: offerId },
+        `/carsharing?partyId=${partyId}`
       );
   
       sendLocalNotification(
@@ -384,10 +388,12 @@ export function CarSharing({ partyId }: CarSharingProps) {
         { partyId, action: 'ride_left' }
       );
 
-      sendLocalNotification(
-        'Passenger Left',
-        `${myPassenger.userName || 'A passenger'} has left your ride.`,
-        { partyId, action: 'ride_left_notification' }
+      await sendRemoteNotification(
+        driverUserId,
+        'Demande annulée',
+        'Le passager a annulé sa demande.',
+        { partyId, action: 'request_cancelled_by_user', requestId },
+        `/carsharing?partyId=${partyId}`
       );
 
       await loadAll();
@@ -490,10 +496,12 @@ export function CarSharing({ partyId }: CarSharingProps) {
   
         // Notify all passengers (whether a new request was inserted or one already existed)
         for (const p of offer.passengers) {
-          sendLocalNotification(
-            'Ride Cancelled',
-            'The ride you were in has been cancelled. A ride request is available for you.',
-            { partyId, action: 'ride_cancelled' }
+          await sendRemoteNotification(
+            p.userId,
+            'Trajet annulé',
+            'Le trajet a été annulé. Une demande a été créée pour vous.',
+            { partyId, action: 'offer_cancelled', offerId: offer.id },
+            `/carsharing?partyId=${partyId}`
           );
         }
       }
