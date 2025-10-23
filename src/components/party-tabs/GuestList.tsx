@@ -78,6 +78,59 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
     }
   };
 
+  const addGuestFromList = async (targetUserId: string) => {
+  setAddingGuest(true);
+
+  try {
+    // Récupère le titre de la party pour un message sympa
+    const { data: partyData, error: partyErr } = await supabase
+      .from('parties')
+      .select('title')
+      .eq('id', partyId)
+      .maybeSingle();
+    if (partyErr) throw partyErr;
+
+    // Insertion de l’invitation
+    const { error } = await supabase.from('party_guests').insert({
+      party_id: partyId,
+      user_id: targetUserId,
+      status: 'invited',
+    });
+
+    if (error) {
+      if ((error as any).code === '23505') {
+        alert('This person is already invited to the party.');
+      } else {
+        throw error;
+      }
+      return;
+    }
+
+    // ✅ Remote notification pour l’invité
+    await sendRemoteNotification(
+      targetUserId,
+      '🎉 Invitation à une fête',
+      partyData?.title
+        ? `Tu es invité·e à « ${partyData.title} ». Dis-nous si tu viens !`
+        : `Tu es invité·e à une fête. Dis-nous si tu viens !`,
+      { partyId, action: 'party_invitation' },
+      `/party/${partyId}?tab=guests`
+    );
+
+    // (Optionnel) feedback local pour l’organisateur
+    sendLocalNotification('Invitation envoyée', 'Le guest a été invité.', { partyId });
+
+    setShowSubscriberList(false);
+    loadGuests();
+  } catch (err) {
+    console.error('Error adding guest:', err);
+    alert('Failed to add guest.');
+  } finally {
+    setAddingGuest(false);
+  }
+};
+
+  
   const updateStatus = async (guestId: string, status: 'confirmed' | 'declined' | 'invited') => {
     try {
       // Récupère la ligne pour connaître le user ciblé + libellés
