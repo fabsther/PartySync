@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Plus, DollarSign, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 // ============================
-// Types
+// Types (post-migration: colonnes NUMERIC en DB)
 // ============================
 interface Profile {
   full_name: string | null;
@@ -14,7 +14,7 @@ interface Profile {
 interface FoodContribution {
   id: string;
   user_id: string;
-  quantity: string | number; // stored as text in DB today; we parse to number
+  quantity: number;      // NUMERIC -> number
   is_extra: boolean;
   profiles: Profile;
 }
@@ -22,9 +22,8 @@ interface FoodContribution {
 interface FoodItem {
   id: string;
   name: string;
-  category: string;
-  base_quantity: number | string; // per-person base, numeric preferred (see SQL note)
-  estimated_cost: number; // cost per unit in EUR
+  base_quantity: number; // NUMERIC -> number (par personne)
+  estimated_cost: number; // coût unitaire (EUR)
   food_contributions: FoodContribution[];
 }
 
@@ -34,17 +33,17 @@ interface FoodBeverageProps {
 }
 
 // ============================
-// Defaults (numeric base_quantity only)
+// Defaults (sans category, tout numérique)
 // ============================
 const defaultFoodItems: Array<Omit<FoodItem, 'id' | 'food_contributions'>> = [
-  { name: 'Burgers', category: 'meat', base_quantity: 1, estimated_cost: 3 },
-  { name: 'Hot Dogs', category: 'meat', base_quantity: 2, estimated_cost: 2 },
-  { name: 'Veggie Burgers', category: 'vegetarian', base_quantity: 0.5, estimated_cost: 3.5 },
-  { name: 'Salad', category: 'sides', base_quantity: 0.2, estimated_cost: 1.5 }, // 0.2 kg pp
-  { name: 'Chips', category: 'snacks', base_quantity: 0.05, estimated_cost: 1 },
-  { name: 'Soda', category: 'drinks', base_quantity: 2, estimated_cost: 1 }, // cans pp
-  { name: 'Beer', category: 'drinks', base_quantity: 3, estimated_cost: 2 },
-  { name: 'Water', category: 'drinks', base_quantity: 2, estimated_cost: 0.5 }, // bottles pp
+  { name: 'Burgers',        base_quantity: 1,    estimated_cost: 3 },
+  { name: 'Hot Dogs',       base_quantity: 2,    estimated_cost: 2 },
+  { name: 'Veggie Burgers', base_quantity: 0.5,  estimated_cost: 3.5 },
+  { name: 'Salad',          base_quantity: 0.2,  estimated_cost: 1.5 }, // 0.2 kg pp
+  { name: 'Chips',          base_quantity: 0.05, estimated_cost: 1 },
+  { name: 'Soda',           base_quantity: 2,    estimated_cost: 1 },   // canettes pp
+  { name: 'Beer',           base_quantity: 3,    estimated_cost: 2 },
+  { name: 'Water',          base_quantity: 2,    estimated_cost: 0.5 }, // bouteilles pp
 ];
 
 export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
@@ -55,85 +54,65 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
   const [error, setError] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({
     name: '',
-    category: 'general',
-    base_quantity: 1, // numeric per-person quantity
+    base_quantity: 1,
     estimated_cost: 0,
   });
   const { user } = useAuth();
 
   // ============================
-  // Helpers
+  // Formatters
   // ============================
-  const toNumber = (v: number | string | null | undefined, fallback = 0): number => {
-    if (typeof v === 'number' && !Number.isNaN(v)) return v;
-    if (typeof v === 'string') {
-      // try to extract first float from the string, e.g. "200g per person" -> 200
-      const m = v.match(/[-+]?[0-9]*\.?[0-9]+/);
-      if (m) return parseFloat(m[0]);
-    }
-    return fallback;
-  };
-
   const priceFmt = useMemo(
     () => new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }),
     []
   );
 
-  // Required quantity baseline uses max(guestCount, 4)
+  // Quantités requises basées sur max(guests, 4)
   const requirementMultiplier = useMemo(() => Math.max(guestCount || 0, 4), [guestCount]);
 
+  // Totaux item
   const computeItemRequiredQty = useCallback(
-    (item: FoodItem) => {
-      const base = toNumber(item.base_quantity, 0);
-      return base * requirementMultiplier;
-    },
+    (item: FoodItem) => item.base_quantity * requirementMultiplier,
     [requirementMultiplier]
   );
 
-  const computeContribQty = useCallback((contribs: FoodContribution[]) => {
-    return contribs.reduce((sum, c) => sum + toNumber(c.quantity, 0), 0);
-  }, []);
-
   const computeItemBroughtQty = useCallback(
-    (item: FoodItem) => computeContribQty(item.food_contributions),
-    [computeContribQty]
+    (item: FoodItem) => item.food_contributions.reduce((s, c) => s + (c.quantity || 0), 0),
+    []
   );
 
   const computeItemTotals = useCallback(
     (item: FoodItem) => {
-      const requiredQty = computeItemRequiredQty(item);
-      const broughtQty = computeItemBroughtQty(item);
-      const unitCost = item.estimated_cost || 0;
+      const requiredQty  = computeItemRequiredQty(item);
+      const broughtQty   = computeItemBroughtQty(item);
+      const unitCost     = item.estimated_cost || 0;
       const requiredCost = requiredQty * unitCost;
-      const broughtCost = broughtQty * unitCost;
+      const broughtCost  = broughtQty * unitCost;
       return { requiredQty, broughtQty, requiredCost, broughtCost, unitCost };
     },
     [computeItemRequiredQty, computeItemBroughtQty]
   );
 
-  const totalCost = useMemo(() => {
-    return foodItems.reduce((sum, item) => sum + computeItemTotals(item).requiredCost, 0);
-  }, [foodItems, computeItemTotals]);
+  const totalCost = useMemo(
+    () => foodItems.reduce((sum, item) => sum + computeItemTotals(item).requiredCost, 0),
+    [foodItems, computeItemTotals]
+  );
 
-  // Strict per requirements: Suggested share = total cost / confirmed guests
-  const suggestedShare = useMemo(() => {
-    if (!guestCount) return 0;
-    return totalCost / guestCount;
-  }, [totalCost, guestCount]);
+  // Règle stricte: Suggested share = total / confirmed guests (sans plancher)
+  const suggestedShare = useMemo(() => (guestCount ? totalCost / guestCount : 0), [totalCost, guestCount]);
 
   const myCurrentCost = useMemo(() => {
     if (!user) return 0;
     return foodItems.reduce((sum, item) => {
-      const my = item.food_contributions.find((c) => c.user_id === user.id);
-      if (!my) return sum;
-      return sum + toNumber(my.quantity, 0) * (item.estimated_cost || 0);
+      const mine = item.food_contributions.find((c) => c.user_id === user.id);
+      return sum + (mine ? mine.quantity * (item.estimated_cost || 0) : 0);
     }, 0);
   }, [foodItems, user]);
 
   const myShareDelta = useMemo(() => suggestedShare - myCurrentCost, [suggestedShare, myCurrentCost]);
 
   // ============================
-  // Data loading
+  // Loading
   // ============================
   const loadGuestCount = useCallback(async () => {
     try {
@@ -145,9 +124,10 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         .eq('status', 'confirmed');
       if (error) throw error;
 
-      const confirmedCount = guests?.length || 0;
-      const companionsCount = guests?.reduce((sum: number, g: any) => sum + ((g.guest_companions as any)?.length || 0), 0) || 0;
-      setGuestCount(confirmedCount + companionsCount);
+      const confirmed = guests?.length || 0;
+      const companions =
+        guests?.reduce((sum: number, g: any) => sum + ((g.guest_companions as any)?.length || 0), 0) || 0;
+      setGuestCount(confirmed + companions);
     } catch (err) {
       console.error('Error loading guest count:', err);
       setError('Could not load guest count.');
@@ -160,7 +140,9 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
       setError(null);
       const { data, error } = await supabase
         .from('food_items')
-        .select('*, food_contributions(id, user_id, quantity, is_extra, profiles(full_name, email))')
+        .select(
+          'id, name, base_quantity, estimated_cost, food_contributions(id, user_id, quantity, is_extra, profiles(full_name, email))'
+        )
         .eq('party_id', partyId)
         .order('name');
       if (error) throw error;
@@ -184,7 +166,12 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
   const addDefaultItems = useCallback(async () => {
     try {
       setError(null);
-      const items = defaultFoodItems.map((item) => ({ party_id: partyId, ...item }));
+      const items = defaultFoodItems.map(({ name, base_quantity, estimated_cost }) => ({
+        party_id: partyId,
+        name,
+        base_quantity,
+        estimated_cost,
+      }));
       const { error } = await supabase.from('food_items').insert(items);
       if (error) throw error;
       await loadFoodItems();
@@ -204,13 +191,12 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         const payload = {
           party_id: partyId,
           name: newItem.name.trim(),
-          category: newItem.category.trim(),
           base_quantity: Number(newItem.base_quantity) || 0,
           estimated_cost: Number(newItem.estimated_cost) || 0,
         };
         const { error } = await supabase.from('food_items').insert(payload);
         if (error) throw error;
-        setNewItem({ name: '', category: 'general', base_quantity: 1, estimated_cost: 0 });
+        setNewItem({ name: '', base_quantity: 1, estimated_cost: 0 });
         setShowForm(false);
         await loadFoodItems();
       } catch (err) {
@@ -229,7 +215,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         const { error } = await supabase.from('food_contributions').insert({
           food_item_id: foodItemId,
           user_id: user.id,
-          quantity: quantity.toString(), // keep as text until DB is migrated
+          quantity,   // NUMERIC -> on envoie un number
           is_extra,
         });
         if (error) throw error;
@@ -297,26 +283,27 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
           <div>
             <div className="text-sm text-neutral-400 mb-1">Estimated Total Cost</div>
-            <div className="text-2xl font-bold text-white flex items-center gap-1">
-              <DollarSign className="w-6 h-6" />
-              <span title={totalCost.toFixed(2)}>{priceFmt.format(totalCost)}</span>
+            <div className="text-2xl font-bold text-white">
+              {priceFmt.format(totalCost)}
             </div>
           </div>
           <div>
             <div className="text-sm text-neutral-400 mb-1">Suggested Share</div>
-            <div className="text-2xl font-bold text-white flex items-center gap-1">
-              <DollarSign className="w-6 h-6" />
-              <span title={suggestedShare.toFixed(2)}>{priceFmt.format(suggestedShare)}</span>
+            <div className="text-2xl font-bold text-white">
+              {priceFmt.format(suggestedShare)}
             </div>
             {user && guestCount > 0 && (
               <div className="text-xs text-neutral-300 mt-1">
                 Your current pledge: {priceFmt.format(myCurrentCost)}
                 {Math.abs(myShareDelta) > 0.01 && (
                   <>
-                    {' '}
-                    (<span className={myShareDelta > 0 ? 'text-orange-300' : 'text-green-300'}>
-                      {myShareDelta > 0 ? '€' + myShareDelta.toFixed(2) + ' to go' : 'over by €' + Math.abs(myShareDelta).toFixed(2)}
-                    </span>)
+                    {' '}(
+                    <span className={myShareDelta > 0 ? 'text-orange-300' : 'text-green-300'}>
+                      {myShareDelta > 0
+                        ? `${priceFmt.format(myShareDelta)} to go`
+                        : `over by ${priceFmt.format(Math.abs(myShareDelta))}`}
+                    </span>
+                    )
                   </>
                 )}
               </div>
@@ -356,13 +343,6 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
               value={newItem.name}
               onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
               placeholder="Item name"
-              className="px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-            />
-            <input
-              type="text"
-              value={newItem.category}
-              onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
-              placeholder="Category"
               className="px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
             />
             <div>
@@ -408,9 +388,11 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
             const totals = computeItemTotals(item);
             const myContribution = item.food_contributions.find((c) => c.user_id === user?.id);
             const otherContributions = item.food_contributions.filter((c) => c.user_id !== user?.id);
+
             const nonExtraQty = item.food_contributions
               .filter((c) => !c.is_extra)
-              .reduce((sum, c) => sum + toNumber(c.quantity, 0), 0);
+              .reduce((sum, c) => sum + (c.quantity || 0), 0);
+
             const neededQty = Math.max(0, totals.requiredQty - nonExtraQty);
 
             return (
@@ -419,10 +401,10 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-white font-medium text-lg truncate">{item.name}</h4>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                      <span className="text-sm text-neutral-400 capitalize">{item.category}</span>
-                      <span className="text-sm text-neutral-400">{toNumber(item.base_quantity)} per person</span>
-                      <span className="text-sm text-orange-400 inline-flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />
+                      <span className="text-sm text-neutral-400">
+                        {item.base_quantity} per person
+                      </span>
+                      <span className="text-sm text-neutral-300">
                         {priceFmt.format(totals.unitCost)} / unit
                       </span>
                     </div>
@@ -462,7 +444,8 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                     <div className="text-xs text-neutral-500 mb-2">Others bringing:</div>
                     {otherContributions.map((contrib) => (
                       <div key={contrib.id} className="text-sm text-neutral-300">
-                        {(contrib.profiles.full_name || contrib.profiles.email)} - {toNumber(contrib.quantity)}{contrib.is_extra ? ' (extra)' : ''}
+                        {(contrib.profiles.full_name || contrib.profiles.email)} - {contrib.quantity}
+                        {contrib.is_extra ? ' (extra)' : ''}
                       </div>
                     ))}
                   </div>
@@ -471,7 +454,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                 {myContribution ? (
                   <div className="flex items-center justify-between bg-green-500/10 rounded p-3">
                     <span className="text-green-400 text-sm">
-                      You're bringing: {toNumber(myContribution.quantity)}{myContribution.is_extra ? ' (extra)' : ''}
+                      You're bringing: {myContribution.quantity}{myContribution.is_extra ? ' (extra)' : ''}
                     </span>
                     <button
                       onClick={() => removeContribution(myContribution.id)}
