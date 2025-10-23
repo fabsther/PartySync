@@ -3,6 +3,7 @@ import { Car, MapPin, Users, X, LogOut, UserMinus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
+import { sendRemoteNotification } from '../lib/remoteNotify';
 
 interface Passenger {
   userId: string;
