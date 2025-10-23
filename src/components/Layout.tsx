@@ -71,6 +71,7 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
             </div>
 
             <div className="hidden md:flex items-center space-x-3">
+              <NotificationsBell userId={user?.id} />
               <button
                 onClick={onCreateParty}
                 className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition flex items-center space-x-2"
