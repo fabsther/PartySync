@@ -17,15 +17,27 @@ function AppContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // --- NEW: traite ?invite=... & ?join_party=... quand l'utilisateur est connecté
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const inviteCode = params.get('invite');
+    if (!user) return;
 
-    if (inviteCode && user) {
-      handleInviteCode(inviteCode);
+    const url = new URL(window.location.href);
+    const inviteCode = url.searchParams.get('invite');
+    const joinPartyId = url.searchParams.get('join_party');
+
+    if (inviteCode || joinPartyId) {
+      handleInviteLink(inviteCode || undefined, joinPartyId || undefined, user.id)
+        .catch((e) => console.error('Error handling invite/join:', e))
+        .finally(() => {
+          // Nettoyer l’URL pour éviter de rejouer au refresh
+          url.searchParams.delete('invite');
+          url.searchParams.delete('join_party');
+          window.history.replaceState({}, '', url.toString());
+        });
     }
   }, [user]);
 
+  // Notifications (inchangé)
   useEffect(() => {
     if (user && checkNotificationSupport()) {
       const hasAskedForPermission = localStorage.getItem('notification-permission-asked');
@@ -44,34 +56,76 @@ function AppContent() {
     }
   }, [user]);
 
-  const handleInviteCode = async (code: string) => {
-    if (!user) return;
+  // --- NEW: logique consolidée (souscription + ajout à la party)
+  const handleInviteLink = async (
+    inviteCode: string | undefined,
+    joinPartyId: string | undefined,
+    currentUserId: string
+  ) => {
+    let ownerId: string | null = null;
 
-    try {
-      const { data: invite, error: inviteError } = await supabase
+    // 1) Si un code d'invite est fourni, trouver le créateur et s'y abonner (idempotent)
+    if (inviteCode) {
+      const code = inviteCode.trim().toUpperCase();
+
+      const { data: codeRow, error: codeErr } = await supabase
         .from('invite_codes')
         .select('created_by')
         .eq('code', code)
         .maybeSingle();
 
-      if (inviteError || !invite) return;
+      if (codeErr) {
+        console.error('Invite code lookup failed:', codeErr);
+      } else if (codeRow) {
+        ownerId = codeRow.created_by;
 
-      const { error: subError } = await supabase
-        .from('subscribers')
-        .insert({
-          user_id: invite.created_by,
-          subscriber_id: user.id,
-        })
-        .select()
+        // Empêcher l'auto-subscribe (au cas où)
+        if (ownerId !== currentUserId) {
+          // Vérifier si deja abonné
+          const { data: existingSub, error: exSubErr } = await supabase
+            .from('subscribers')
+            .select('id')
+            .eq('user_id', ownerId)
+            .eq('subscriber_id', currentUserId)
+            .maybeSingle();
+
+          if (exSubErr && exSubErr.code !== 'PGRST116') {
+            console.error('Check existing subscription failed:', exSubErr);
+          } else if (!existingSub) {
+            const { error: insSubErr } = await supabase
+              .from('subscribers')
+              .insert({ user_id: ownerId, subscriber_id: currentUserId });
+
+            // 23505 = unique violation -> déjà abonné, on ignore
+            if (insSubErr && (insSubErr as any).code !== '23505') {
+              console.error('Insert subscription failed:', insSubErr);
+            }
+          }
+        }
+      }
+    }
+
+    // 2) Si join_party est présent, ajouter l'utilisateur aux guests (idempotent)
+    if (joinPartyId) {
+      const { data: existingGuest, error: exGuestErr } = await supabase
+        .from('party_guests')
+        .select('id')
+        .eq('party_id', joinPartyId)
+        .eq('user_id', currentUserId)
         .maybeSingle();
 
-      if (subError && subError.code !== '23505') {
-        console.error('Error adding subscriber:', subError);
-      }
+      if (exGuestErr && exGuestErr.code !== 'PGRST116') {
+        console.error('Check existing guest failed:', exGuestErr);
+      } else if (!existingGuest) {
+        const { error: insGuestErr } = await supabase
+          .from('party_guests')
+          .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
 
-      window.history.replaceState({}, '', window.location.pathname);
-    } catch (error) {
-      console.error('Error handling invite code:', error);
+        // 23505 = unique violation -> déjà invité, on ignore
+        if (insGuestErr && (insGuestErr as any).code !== '23505') {
+          console.error('Insert guest failed:', insGuestErr);
+        }
+      }
     }
   };
 
