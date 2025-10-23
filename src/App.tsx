@@ -6,12 +6,13 @@ import { PartyList } from './components/PartyList';
 import { PartyDetail } from './components/PartyDetail';
 import { CreatePartyModal } from './components/CreatePartyModal';
 import { SubscribersList } from './components/SubscribersList';
+import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
 import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<'parties' | 'subscribers'>('parties');
+  const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile'>('parties');
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -86,9 +87,9 @@ function AppContent() {
     return <AuthForm />;
   }
 
-  const handleTabChange = (tab: 'parties' | 'subscribers') => {
+  const handleTabChange = (tab: 'parties' | 'subscribers' | 'profile') => {
     setActiveTab(tab);
-    if (tab === 'subscribers') {
+    if (tab === 'subscribers' || tab === 'profile') {
       setSelectedPartyId(null);
     }
   };
@@ -111,8 +112,10 @@ function AppContent() {
           />
         ) : activeTab === 'parties' ? (
           <PartyList key={refreshKey} onSelectParty={setSelectedPartyId} />
-        ) : (
+        ) : activeTab === 'subscribers' ? (
           <SubscribersList />
+        ) : (
+          <Profile />
         )}
       </Layout>
 

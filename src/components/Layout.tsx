@@ -1,11 +1,11 @@
 import { ReactNode, useState } from 'react';
-import { PartyPopper, Users, CalendarDays, LogOut, Menu, X, Plus } from 'lucide-react';
+import { PartyPopper, Users, CalendarDays, LogOut, Menu, X, Plus, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
-  activeTab: 'parties' | 'subscribers';
-  onTabChange: (tab: 'parties' | 'subscribers') => void;
+  activeTab: 'parties' | 'subscribers' | 'profile';
+  onTabChange: (tab: 'parties' | 'subscribers' | 'profile') => void;
   onCreateParty: () => void;
 }
 
@@ -55,6 +55,17 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
               >
                 <Users className="w-5 h-5 inline mr-2" />
                 Subscribers
+              </button>
+              <button
+                onClick={() => onTabChange('profile')}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  activeTab === 'profile'
+                    ? 'bg-orange-500 text-white'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+              >
+                <User className="w-5 h-5 inline mr-2" />
+                Profile
               </button>
             </div>
 
@@ -114,6 +125,20 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
               >
                 <Users className="w-5 h-5 inline mr-2" />
                 Subscribers
+              </button>
+              <button
+                onClick={() => {
+                  onTabChange('profile');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
+                  activeTab === 'profile'
+                    ? 'bg-orange-500 text-white'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                }`}
+              >
+                <User className="w-5 h-5 inline mr-2" />
+                Profile
               </button>
               <button
                 onClick={() => {
