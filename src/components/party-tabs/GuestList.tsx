@@ -130,31 +130,36 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
   }
 };
 
-  
-  const updateStatus = async (guestId: string, status: 'confirmed' | 'declined' | 'invited') => {
+   const updateStatus = async (guestId: string, status: 'confirmed' | 'declined' | 'invited') => {
     try {
-      // Récupère la ligne pour connaître le user ciblé + libellés
+      // 1) Récupérer la ligne du guest (sans join non standard)
       const { data: gRow, error: gErr } = await supabase
         .from('party_guests')
-        .select('id, user_id, status, profiles(full_name, email), parties:title(parties!inner(title))')
+        .select('id, user_id, status, party_id, profiles(full_name, email)')
         .eq('id', guestId)
-        .single();
-      if (gErr) throw gErr;
+        .maybeSingle();
   
-      const { error } = await supabase
+      if (gErr) throw gErr;
+      if (!gRow) {
+        console.error('Guest row not found for id:', guestId);
+        return;
+      }
+  
+      // 2) Mettre à jour le statut
+      const { error: upErr } = await supabase
         .from('party_guests')
         .update({ status })
         .eq('id', guestId);
-      if (error) throw error;
   
-      // Qui a déclenché l’action ?
+      if (upErr) throw upErr;
+  
+      // 3) Notifications cibles
       const actedByGuest = user?.id === gRow.user_id;
       const actedByCreator = user?.id === creatorId;
   
       const guestName = gRow.profiles?.full_name || gRow.profiles?.email || 'Guest';
       const deepLink = `/party/${partyId}?tab=guests`;
   
-      // 📣 Compose les messages
       const statusTxt =
         status === 'confirmed' ? 'a confirmé sa présence'
         : status === 'declined' ? 'a décliné l’invitation'
@@ -175,6 +180,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
           status === 'confirmed' ? 'Votre présence a été confirmée.'
           : status === 'declined' ? 'Votre invitation a été marquée comme déclinée.'
           : 'Votre statut a été réinitialisé en attente.';
+  
         await sendRemoteNotification(
           gRow.user_id,
           '✏️ Mise à jour de votre statut',
@@ -184,9 +190,11 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
         );
       }
   
+      // 4) Refresh
       loadGuests();
     } catch (error) {
       console.error('Error updating guest status:', error);
+      alert('Failed to update status.');
     }
   };
 
