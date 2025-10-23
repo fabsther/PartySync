@@ -121,58 +121,59 @@ export function SubscribersList() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const copyInviteCode = () => {
-    navigator.clipboard.writeText(inviteCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
-
-  const addFriendByCode = async () => {
+    const copyInviteCode = () => {
+      navigator.clipboard.writeText(inviteCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    };
+  
+   const addFriendByCode = async () => {
     if (!user || !friendCode.trim()) return;
-
+  
     setAddingFriend(true);
     try {
       const trimmedCode = friendCode.trim().toUpperCase();
-
-      if (trimmedCode === inviteCode) {
-        alert('You cannot add yourself!');
-        return;
-      }
-
+  
       const { data: codeData, error: codeError } = await supabase
         .from('invite_codes')
         .select('created_by')
         .eq('code', trimmedCode)
         .maybeSingle();
-
+  
       if (codeError) throw codeError;
-
+  
       if (!codeData) {
         alert('Invalid invite code. Please check and try again.');
         return;
       }
-
+  
+      // check ID, not code
+      if (codeData.created_by === user.id) {
+        alert('You cannot subscribe to yourself!');
+        return;
+      }
+  
       const { data: existing, error: existingError } = await supabase
         .from('subscribers')
         .select('id')
         .eq('user_id', codeData.created_by)
         .eq('subscriber_id', user.id)
         .maybeSingle();
-
+  
       if (existingError && existingError.code !== 'PGRST116') throw existingError;
-
+  
       if (existing) {
         alert('You are already subscribed to this user!');
         return;
       }
-
+  
       const { error: insertError } = await supabase.from('subscribers').insert({
         user_id: codeData.created_by,
         subscriber_id: user.id,
       });
-
+  
       if (insertError) throw insertError;
-
+  
       setFriendCode('');
       await loadSubscribers();
       alert('Successfully added friend!');
@@ -183,6 +184,7 @@ export function SubscribersList() {
       setAddingFriend(false);
     }
   };
+
 
   if (loading) {
     return (
