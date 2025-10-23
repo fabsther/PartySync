@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { PartyPopper, Users, CalendarDays, LogOut, Menu, X, Plus, User } from 'lucide-react';
+import { NotificationsBell } from '../components/NotificationsBell';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
