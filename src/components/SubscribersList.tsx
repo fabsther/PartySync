@@ -18,6 +18,9 @@ export function SubscribersList() {
   const [inviteCode, setInviteCode] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [friendCode, setFriendCode] = useState('');
+  const [addingFriend, setAddingFriend] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -97,6 +100,69 @@ export function SubscribersList() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyInviteCode = () => {
+    navigator.clipboard.writeText(inviteCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const addFriendByCode = async () => {
+    if (!user || !friendCode.trim()) return;
+
+    setAddingFriend(true);
+    try {
+      const trimmedCode = friendCode.trim().toUpperCase();
+
+      if (trimmedCode === inviteCode) {
+        alert('You cannot add yourself!');
+        return;
+      }
+
+      const { data: codeData, error: codeError } = await supabase
+        .from('invite_codes')
+        .select('created_by')
+        .eq('code', trimmedCode)
+        .maybeSingle();
+
+      if (codeError) throw codeError;
+
+      if (!codeData) {
+        alert('Invalid invite code. Please check and try again.');
+        return;
+      }
+
+      const { data: existing, error: existingError } = await supabase
+        .from('subscribers')
+        .select('id')
+        .eq('user_id', codeData.created_by)
+        .eq('subscriber_id', user.id)
+        .maybeSingle();
+
+      if (existingError && existingError.code !== 'PGRST116') throw existingError;
+
+      if (existing) {
+        alert('You are already subscribed to this user!');
+        return;
+      }
+
+      const { error: insertError } = await supabase.from('subscribers').insert({
+        user_id: codeData.created_by,
+        subscriber_id: user.id,
+      });
+
+      if (insertError) throw insertError;
+
+      setFriendCode('');
+      await loadSubscribers();
+      alert('Successfully added friend!');
+    } catch (error) {
+      console.error('Error adding friend by code:', error);
+      alert('Failed to add friend. Please try again.');
+    } finally {
+      setAddingFriend(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -110,25 +176,84 @@ export function SubscribersList() {
       <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/10 border border-orange-500/30 rounded-xl p-6">
         <div className="flex items-center space-x-3 mb-4">
           <Share2 className="w-6 h-6 text-orange-400" />
-          <h2 className="text-xl font-bold text-white">Share Your Invite Link</h2>
+          <h2 className="text-xl font-bold text-white">Share Your Invite</h2>
         </div>
         <p className="text-neutral-300 mb-4">
-          Share this link with friends. When they sign up, they'll automatically become your subscribers
+          Share this link or code with friends. When they sign up or enter your code, they'll automatically become your subscribers
           and see your parties.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Invite Link</label>
+            <div className="flex space-x-3">
+              <input
+                type="text"
+                readOnly
+                value={`${window.location.origin}?invite=${inviteCode}`}
+                className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white"
+              />
+              <button
+                onClick={copyInviteLink}
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
+              >
+                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                <span>{copied ? 'Copied!' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Your Invite Code</label>
+            <div className="flex space-x-3">
+              <input
+                type="text"
+                readOnly
+                value={inviteCode}
+                className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-2xl font-mono tracking-wider text-center"
+              />
+              <button
+                onClick={copyInviteCode}
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
+              >
+                {copiedCode ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                <span>{copiedCode ? 'Copied!' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/30 rounded-xl p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <UserPlus className="w-6 h-6 text-green-400" />
+          <h2 className="text-xl font-bold text-white">Add Friend by Code</h2>
+        </div>
+        <p className="text-neutral-300 mb-4">
+          Enter a friend's invite code to subscribe to their parties.
         </p>
         <div className="flex space-x-3">
           <input
             type="text"
-            readOnly
-            value={`${window.location.origin}?invite=${inviteCode}`}
-            className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white"
+            value={friendCode}
+            onChange={(e) => setFriendCode(e.target.value.toUpperCase())}
+            placeholder="Enter invite code"
+            className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition uppercase font-mono tracking-wider text-center text-xl"
+            maxLength={8}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addFriendByCode();
+              }
+            }}
           />
           <button
-            onClick={copyInviteLink}
-            className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
+            onClick={addFriendByCode}
+            disabled={addingFriend || !friendCode.trim()}
+            className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-            <span>{copied ? 'Copied!' : 'Copy'}</span>
+            <UserPlus className="w-5 h-5" />
+            <span>{addingFriend ? 'Adding...' : 'Add'}</span>
           </button>
         </div>
       </div>
