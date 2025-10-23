@@ -62,32 +62,53 @@ export function SubscribersList() {
 
   const loadInviteCode = async () => {
     if (!user) return;
-
+  
     try {
-      const { data, error } = await supabase
+      // 1) Tenter de récupérer un unique code existant pour cet utilisateur
+      //    - Si plusieurs existent déjà (legacy), on prend le plus récent.
+      const { data: existingRows, error: selectError } = await supabase
+        .from('invite_codes')
+        .select('code, created_at')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false }) // nécessite une colonne created_at, voir plus bas
+        .limit(1);
+  
+      if (selectError) throw selectError;
+  
+      if (existingRows && existingRows.length > 0) {
+        setInviteCode(existingRows[0].code);
+        return;
+      }
+  
+      // 2) Aucun code : en créer un, mais sans jamais dupliquer
+      const newCode = generateInviteCode();
+  
+      // insert with onConflict -> ignore si un autre client l'a créé entre-temps
+      const { error: insertError } = await supabase
+        .from('invite_codes')
+        .insert(
+          { code: newCode, created_by: user.id },
+          { onConflict: 'created_by', ignoreDuplicates: true }
+        );
+  
+      if (insertError) throw insertError;
+  
+      // 3) Relire le code (que ce soit celui inséré ou celui pré-existant en cas de conflit)
+      const { data: finalRow, error: finalSelectError } = await supabase
         .from('invite_codes')
         .select('code')
         .eq('created_by', user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (data) {
-        setInviteCode(data.code);
-      } else {
-        const newCode = generateInviteCode();
-        const { error: insertError } = await supabase.from('invite_codes').insert({
-          code: newCode,
-          created_by: user.id,
-        });
-
-        if (insertError) throw insertError;
-        setInviteCode(newCode);
-      }
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+  
+      if (finalSelectError) throw finalSelectError;
+      setInviteCode(finalRow.code);
     } catch (error) {
       console.error('Error loading invite code:', error);
     }
   };
+
 
   const generateInviteCode = () => {
     return Math.random().toString(36).substring(2, 10).toUpperCase();
