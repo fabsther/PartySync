@@ -1,0 +1,49 @@
+import { supabase } from './supabase';
+
+/**
+ * Envoie une notification DISTANTE à un utilisateur :
+ * 1) insère une entrée dans `notifications` (historique + Realtime)
+ * 2) déclenche l’Edge Function `/functions/v1/send-push` (Web Push hors app)
+ *
+ * @param userId   Destinataire (UUID)
+ * @param title    Titre de la notif
+ * @param body     Corps de la notif
+ * @param metadata Données additionnelles (ex: { partyId, action, url })
+ * @param deepLink URL à ouvrir au clic (ex: '/carsharing?partyId=...' )
+ */
+export async function sendRemoteNotification(
+  userId: string,
+  title: string,
+  body: string,
+  metadata: Record<string, any> = {},
+  deepLink?: string
+) {
+  // 1) Persistance (historique + Realtime côté destinataire)
+  const { error: insertErr } = await supabase.from('notifications').insert({
+    user_id: userId,
+    title,
+    message: body,
+    metadata, // ex: { partyId, action, offerId, ... }
+  });
+  if (insertErr) console.error('[remoteNotify] insert notifications error', insertErr);
+
+  // 2) Web Push (Edge Function)
+  try {
+    const resp = await fetch('/functions/v1/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        title,
+        body,
+        url: deepLink, // ex: '/carsharing?party=...' (lu dans service-worker)
+      }),
+    });
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.warn('[remoteNotify] send-push failed', resp.status, t);
+    }
+  } catch (e) {
+    console.warn('[remoteNotify] send-push network error', e);
+  }
+}
