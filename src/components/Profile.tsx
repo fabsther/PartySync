@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, MapPin, Save, Loader } from 'lucide-react';
+import { User, Mail, MapPin, Save, Loader, Bell, BellRing } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { registerNotificationToken, sendLocalNotification } from '../lib/notifications';
 
 export function Profile() {
   const { user } = useAuth();
@@ -201,6 +202,157 @@ export function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Section Test Notifications */}
+      <NotificationTestSection userId={user?.id} />
+    </div>
+  );
+}
+
+function NotificationTestSection({ userId }: { userId?: string }) {
+  const [testingLocal, setTestingLocal] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
+  const [pushStatus, setPushStatus] = useState<string>('');
+  const [subscriptionInfo, setSubscriptionInfo] = useState<string>('');
+
+  useEffect(() => {
+    checkSubscription();
+  }, []);
+
+  const checkSubscription = async () => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          setSubscriptionInfo(`✅ Push subscription active\nEndpoint: ${subscription.endpoint.substring(0, 50)}...`);
+        } else {
+          setSubscriptionInfo('❌ No push subscription');
+        }
+      } catch (e) {
+        setSubscriptionInfo(`❌ Error: ${e}`);
+      }
+    } else {
+      setSubscriptionInfo('❌ Push not supported');
+    }
+  };
+
+  const testLocalNotification = async () => {
+    setTestingLocal(true);
+    try {
+      await sendLocalNotification(
+        '🎉 Test Local',
+        'Cette notification est locale (Service Worker)',
+        { test: true }
+      );
+      setPushStatus('✅ Local notification sent!');
+    } catch (e: any) {
+      setPushStatus(`❌ Local error: ${e.message}`);
+    }
+    setTestingLocal(false);
+  };
+
+  const testPushNotification = async () => {
+    if (!userId) return;
+    setTestingPush(true);
+    setPushStatus('Sending push...');
+    
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const resp = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          userId,
+          title: '🚀 Test Push',
+          body: 'Cette notification vient du serveur (Edge Function)',
+          url: '/',
+        }),
+      });
+      
+      const result = await resp.json();
+      console.log('[Push Test] Response:', result);
+      
+      if (resp.ok) {
+        setPushStatus(`✅ Push sent! Result: ${JSON.stringify(result)}`);
+      } else {
+        setPushStatus(`❌ Push failed: ${JSON.stringify(result)}`);
+      }
+    } catch (e: any) {
+      console.error('[Push Test] Error:', e);
+      setPushStatus(`❌ Push error: ${e.message}`);
+    }
+    setTestingPush(false);
+  };
+
+  const reRegisterPush = async () => {
+    if (!userId) return;
+    setPushStatus('Re-registering...');
+    try {
+      const success = await registerNotificationToken(userId);
+      if (success) {
+        setPushStatus('✅ Push subscription re-registered!');
+        checkSubscription();
+      } else {
+        setPushStatus('❌ Failed to register push');
+      }
+    } catch (e: any) {
+      setPushStatus(`❌ Error: ${e.message}`);
+    }
+  };
+
+  return (
+    <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+      <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <BellRing className="w-5 h-5 text-orange-500" />
+        Test Notifications
+      </h3>
+      
+      {/* Subscription Status */}
+      <div className="bg-neutral-800 rounded-lg p-4 mb-4">
+        <p className="text-sm text-neutral-400 mb-2">Push Subscription Status:</p>
+        <pre className="text-xs text-neutral-300 whitespace-pre-wrap">{subscriptionInfo || 'Checking...'}</pre>
+      </div>
+
+      {/* Test Buttons */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        <button
+          onClick={testLocalNotification}
+          disabled={testingLocal}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+        >
+          {testingLocal ? <Loader className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+          Test Local
+        </button>
+        
+        <button
+          onClick={testPushNotification}
+          disabled={testingPush}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+        >
+          {testingPush ? <Loader className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
+          Test Push (Edge Function)
+        </button>
+
+        <button
+          onClick={reRegisterPush}
+          className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+        >
+          Re-register Push
+        </button>
+      </div>
+
+      {/* Status */}
+      {pushStatus && (
+        <div className="bg-neutral-800 rounded-lg p-3">
+          <p className="text-sm text-neutral-300 whitespace-pre-wrap">{pushStatus}</p>
+        </div>
+      )}
     </div>
   );
 }
