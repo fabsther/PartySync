@@ -99,12 +99,24 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
               </button>
             </div>
 
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden text-neutral-400 hover:text-white p-2"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            <div className="md:hidden flex items-center space-x-2">
+              <NotificationsBell userId={user?.id} />
+              {canInstall && (
+                <button
+                  onClick={install}
+                  className="text-orange-400 hover:text-orange-300 p-2"
+                  title="Installer l'app"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-neutral-400 hover:text-white p-2"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
         </div>
 

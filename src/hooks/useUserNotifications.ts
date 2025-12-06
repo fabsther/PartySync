@@ -24,7 +24,7 @@ export function useUserNotifications(userId?: string) {
     setLoading(true);
     const query = supabase
       .from('notifications')
-      .select('id, title, message, metadata, read, created_at')
+      .select('id, user_id, title, message, metadata, read, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(15);
@@ -70,7 +70,7 @@ export function useUserNotifications(userId?: string) {
     console.log('[Realtime] Setting up subscription for user:', userId);
     
     const channel = supabase
-      .channel(`notifications:${userId}`)
+      .channel(`notifications-${userId}-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications' },
@@ -85,7 +85,11 @@ export function useUserNotifications(userId?: string) {
           }
           
           console.log('[Realtime] Adding notification:', n);
-          setItems(prev => [n, ...prev]); // prepend
+          setItems(prev => {
+            // Éviter les doublons
+            if (prev.some(p => p.id === n.id)) return prev;
+            return [n, ...prev];
+          });
           
           // Afficher une notification système si l'app n'est pas au premier plan
           if (document.hidden) {
@@ -97,7 +101,36 @@ export function useUserNotifications(userId?: string) {
         console.log('[Realtime] Subscription status:', status, err || '');
       });
 
-    return () => { supabase.removeChannel(channel); };
+    // Polling de secours toutes les 10 secondes
+    const pollInterval = setInterval(async () => {
+      const { data } = await supabase
+        .from('notifications')
+        .select('id, user_id, title, message, metadata, read, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (data && data.length > 0) {
+        setItems(prev => {
+          const newItems = data.filter((n: any) => !prev.some(p => p.id === n.id));
+          if (newItems.length > 0) {
+            console.log('[Polling] Found new notifications:', newItems.length);
+            // Notification système pour les nouvelles
+            if (document.hidden && newItems.length > 0) {
+              const latest = newItems[0] as AppNotification;
+              sendLocalNotification(latest.title, latest.message, latest.metadata);
+            }
+            return [...newItems, ...prev] as AppNotification[];
+          }
+          return prev;
+        });
+      }
+    }, 10000);
+
+    return () => { 
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 

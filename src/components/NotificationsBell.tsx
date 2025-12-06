@@ -42,7 +42,7 @@ export function NotificationsBell({ userId }: Props) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-96 max-w-[90vw] bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50">
+        <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
             <div className="font-semibold">Notifications</div>
             <button
