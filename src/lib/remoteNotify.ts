@@ -27,7 +27,29 @@ export async function sendRemoteNotification(
   });
   if (insertErr) console.error('[remoteNotify] insert notifications error', insertErr);
 
-  // 2) Web Push (Edge Function) - désactivé pour l'instant
-  // TODO: Activer quand l'Edge Function send-push aura les CORS headers configurés
-  // Les notifications in-app fonctionnent via Supabase Realtime (étape 1 ci-dessus)
+  // 2) Web Push (Edge Function) - envoie les notifications natives
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (supabaseUrl) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          userId,
+          title,
+          body,
+          url: deepLink,
+        }),
+      });
+      if (!resp.ok) {
+        console.debug('[remoteNotify] send-push response:', resp.status);
+      }
+    } catch (e) {
+      console.debug('[remoteNotify] send-push error:', e);
+    }
+  }
 }

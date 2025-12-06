@@ -27,14 +27,15 @@ export async function registerNotificationToken(userId: string): Promise<boolean
       return false;
     }
 
-    const token = await generateNotificationToken();
-
-    if (!token) {
-      console.log('Failed to generate notification token');
-      return false;
+    // Enregistrer la push subscription pour les notifications natives
+    const pushSubscription = await registerPushSubscription(userId);
+    if (pushSubscription) {
+      console.log('Push subscription registered successfully');
     }
 
+    // Garder aussi l'ancien système de tokens pour compatibilité
     const deviceInfo = getDeviceInfo();
+    const token = `web-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     const { error } = await supabase
       .from('notification_tokens')
@@ -52,7 +53,6 @@ export async function registerNotificationToken(userId: string): Promise<boolean
 
     if (error) {
       console.error('Error saving notification token:', error);
-      return false;
     }
 
     console.log('Notification token registered successfully');
@@ -63,25 +63,86 @@ export async function registerNotificationToken(userId: string): Promise<boolean
   }
 }
 
-async function generateNotificationToken(): Promise<string | null> {
+async function registerPushSubscription(userId: string): Promise<boolean> {
   try {
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('Push notifications not supported');
+      return false;
+    }
 
-      if ('pushManager' in registration) {
-        const subscription = await registration.pushManager.getSubscription();
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC;
+    console.log('[Push] VAPID key loaded:', vapidPublicKey ? `${vapidPublicKey.substring(0, 20)}...` : 'NOT FOUND');
+    
+    if (!vapidPublicKey) {
+      console.log('VAPID public key not configured');
+      return false;
+    }
 
-        if (subscription) {
-          return JSON.stringify(subscription);
-        }
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Vérifier si une subscription existe déjà
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      // Créer une nouvelle subscription
+      try {
+        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey.trim());
+        console.log('[Push] Converted key length:', convertedVapidKey.length, '(should be 65)');
+        
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey,
+        });
+        console.log('New push subscription created');
+      } catch (subscribeError) {
+        console.error('[Push] Subscribe error:', subscribeError);
+        throw subscribeError;
       }
     }
 
-    return `web-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    // Extraire les clés de la subscription
+    const subscriptionJson = subscription.toJSON();
+    const endpoint = subscription.endpoint;
+    const p256dh = subscriptionJson.keys?.p256dh || '';
+    const auth = subscriptionJson.keys?.auth || '';
+
+    // Sauvegarder dans Supabase
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert(
+        {
+          user_id: userId,
+          endpoint,
+          p256dh,
+          auth,
+          ua: navigator.userAgent,
+        },
+        {
+          onConflict: 'endpoint',
+        }
+      );
+
+    if (error) {
+      console.error('Error saving push subscription:', error);
+      return false;
+    }
+
+    return true;
   } catch (error) {
-    console.error('Error generating notification token:', error);
-    return null;
+    console.error('Error registering push subscription:', error);
+    return false;
   }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 function getDeviceInfo(): string {
