@@ -1,7 +1,8 @@
 import { ReactNode, useState } from 'react';
-import { PartyPopper, Users, CalendarDays, LogOut, Menu, X, Plus, User } from 'lucide-react';
+import { PartyPopper, Users, CalendarDays, LogOut, Menu, X, Plus, User, Download } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { useAuth } from '../contexts/AuthContext';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,6 +14,7 @@ interface LayoutProps {
 export function Layout({ children, activeTab, onTabChange, onCreateParty }: LayoutProps) {
   const { signOut, user } = useAuth(); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { canInstall, install } = usePWAInstall();
 
   const handleSignOut = async () => {
     try {
@@ -71,6 +73,15 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
             </div>
 
             <div className="hidden md:flex items-center space-x-3">
+              {canInstall && (
+                <button
+                  onClick={install}
+                  className="text-orange-400 hover:text-orange-300 p-2 rounded-lg hover:bg-neutral-800 transition"
+                  title="Installer l'app"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
               <NotificationsBell userId={user?.id} />
               <button
                 onClick={onCreateParty}
@@ -159,6 +170,18 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
                 <LogOut className="w-5 h-5 inline mr-2" />
                 Sign Out
               </button>
+              {canInstall && (
+                <button
+                  onClick={() => {
+                    install();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center space-x-2"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>Installer l'app</span>
+                </button>
+              )}
             </div>
           </div>
         )}

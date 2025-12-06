@@ -9,6 +9,7 @@ import { SubscribersList } from './components/SubscribersList';
 import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
 import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
+import { InstallPrompt } from './components/InstallPrompt';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -190,6 +191,7 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <InstallPrompt />
     </AuthProvider>
   );
 }
