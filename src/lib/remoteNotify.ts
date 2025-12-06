@@ -27,23 +27,7 @@ export async function sendRemoteNotification(
   });
   if (insertErr) console.error('[remoteNotify] insert notifications error', insertErr);
 
-  // 2) Web Push (Edge Function)
-  try {
-    const resp = await fetch('/functions/v1/send-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        title,
-        body,
-        url: deepLink, // ex: '/carsharing?party=...' (lu dans service-worker)
-      }),
-    });
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.warn('[remoteNotify] send-push failed', resp.status, t);
-    }
-  } catch (e) {
-    console.warn('[remoteNotify] send-push network error', e);
-  }
+  // 2) Web Push (Edge Function) - désactivé pour l'instant
+  // TODO: Activer quand l'Edge Function send-push aura les CORS headers configurés
+  // Les notifications in-app fonctionnent via Supabase Realtime (étape 1 ci-dessus)
 }

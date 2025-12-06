@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { sendLocalNotification } from '../lib/notifications';
 
 export type AppNotification = {
   id: string;
+  user_id: string;
   title: string;
   message: string;
   metadata: any;
@@ -65,17 +67,35 @@ export function useUserNotifications(userId?: string) {
     if (!userId) return;
     fetchPage();
 
+    console.log('[Realtime] Setting up subscription for user:', userId);
+    
     const channel = supabase
       .channel(`notifications:${userId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
         (payload) => {
-          const n = payload.new as any;
+          console.log('[Realtime] Received payload:', payload);
+          const n = payload.new as AppNotification;
+          
+          // Filtrer côté client pour ne garder que les notifications de l'utilisateur
+          if (n.user_id !== userId) {
+            console.log('[Realtime] Ignoring notification for other user');
+            return;
+          }
+          
+          console.log('[Realtime] Adding notification:', n);
           setItems(prev => [n, ...prev]); // prepend
+          
+          // Afficher une notification système si l'app n'est pas au premier plan
+          if (document.hidden) {
+            sendLocalNotification(n.title, n.message, n.metadata);
+          }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('[Realtime] Subscription status:', status, err || '');
+      });
 
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
