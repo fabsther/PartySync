@@ -204,7 +204,7 @@ export function Profile() {
       </div>
 
       {/* Section Test Notifications */}
-      <NotificationTestSection userId={user?.id} />
+      {/* <NotificationTestSection userId={user?.id} /> */}
     </div>
   );
 }
