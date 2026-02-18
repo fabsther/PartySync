@@ -1,23 +1,11 @@
 // Deno Edge Function: envoie du Web Push aux abonnements d'un user
+// Utilise npm:web-push avec la compatibilité npm native de Deno
 import { serve } from 'https://deno.land/std@0.203.0/http/server.ts';
-import webpush from 'https://esm.sh/web-push@3';
-
-const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC')!;
-const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE')!;
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-webpush.setVapidDetails('mailto:admin@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
+import webpush from 'npm:web-push@3.6.7';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'content-type, authorization, apikey',
-};
-
-const dbHeaders = {
-  apikey: SUPABASE_SERVICE_ROLE_KEY,
-  Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-  'Content-Type': 'application/json',
 };
 
 serve(async (req) => {
@@ -26,18 +14,38 @@ serve(async (req) => {
   }
 
   try {
+    const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC');
+    const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+      return new Response(
+        JSON.stringify({ error: 'Missing VAPID secrets' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    webpush.setVapidDetails('mailto:admin@partysync.app', VAPID_PUBLIC, VAPID_PRIVATE);
+
     const { userId, title, body, url } = await req.json();
 
     if (!userId || !title) {
-      return new Response('Missing userId or title', {
-        status: 400,
-        headers: corsHeaders,
-      });
+      return new Response(
+        JSON.stringify({ error: 'Missing userId or title' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const dbHeaders = {
+      apikey: SUPABASE_SERVICE_ROLE_KEY!,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+    };
 
     // Récupère les abonnements push du user
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/push_subscriptions?user_id=eq.${userId}&select=id,endpoint,p256dh,auth`,
+      `${SUPABASE_URL}/rest/v1/push_subscriptions?user_id=eq.${userId}&select=endpoint,p256dh,auth`,
       { headers: dbHeaders }
     );
 
@@ -45,7 +53,7 @@ serve(async (req) => {
       return new Response(await resp.text(), { status: resp.status, headers: corsHeaders });
     }
 
-    const subs = await resp.json() as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
+    const subs = await resp.json() as Array<{ endpoint: string; p256dh: string; auth: string }>;
 
     if (subs.length === 0) {
       return new Response(
@@ -73,7 +81,7 @@ serve(async (req) => {
         const status = err?.statusCode ?? err?.status;
         if (status === 410 || status === 404) {
           staleEndpoints.push(subs[i].endpoint);
-          console.log(`[send-push] Stale subscription detected (${status}):`, subs[i].endpoint.slice(-20));
+          console.log(`[send-push] Stale subscription (${status})`);
         } else {
           console.warn('[send-push] Send failed:', err?.message || err);
         }
@@ -81,7 +89,6 @@ serve(async (req) => {
     });
 
     if (staleEndpoints.length > 0) {
-      // Supprimer les endpoints invalides en batch
       for (const endpoint of staleEndpoints) {
         await fetch(
           `${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`,
@@ -99,9 +106,9 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error('[send-push] Error:', e);
-    return new Response(`send-push error: ${(e as Error)?.message || e}`, {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return new Response(
+      JSON.stringify({ error: (e as Error)?.message || String(e) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
