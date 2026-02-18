@@ -29,8 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecovering(true);
         setUser(session?.user ?? null);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setIsRecovering(false);
+        setUser(null);
+      } else {
+        // SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc.
+        // Ne pas réinitialiser isRecovering — seul updatePassword ou SIGNED_OUT le reset
         setUser(session?.user ?? null);
       }
     });
