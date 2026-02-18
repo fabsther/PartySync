@@ -39,23 +39,32 @@ function AppContent() {
     }
   }, [user]);
 
-  // Notifications (inchangé)
+  // Notifications : enregistrement au login + ré-enregistrement si le SW signale un changement
   useEffect(() => {
-    if (user && checkNotificationSupport()) {
-      const hasAskedForPermission = localStorage.getItem('notification-permission-asked');
+    if (!user || !checkNotificationSupport()) return;
 
-      if (!hasAskedForPermission) {
-        setTimeout(() => {
-          registerNotificationToken(user.id).then((success) => {
-            if (success) {
-              localStorage.setItem('notification-permission-asked', 'true');
-            }
-          });
-        }, 2000);
-      } else if (Notification.permission === 'granted') {
+    const hasAsked = localStorage.getItem('notification-permission-asked');
+
+    if (!hasAsked) {
+      setTimeout(() => {
+        registerNotificationToken(user.id).then((success) => {
+          if (success) localStorage.setItem('notification-permission-asked', 'true');
+        });
+      }, 2000);
+    } else if (Notification.permission === 'granted') {
+      registerNotificationToken(user.id);
+    }
+
+    // Ré-enregistrement immédiat si le SW détecte un changement de subscription
+    // (pushsubscriptionchange sans config dispo au moment de l'événement)
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED' && Notification.permission === 'granted') {
+        console.log('[App] SW signaled subscription change – re-registering');
         registerNotificationToken(user.id);
       }
-    }
+    };
+    navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleSWMessage);
   }, [user]);
 
   // --- NEW: logique consolidée (souscription + ajout à la party)

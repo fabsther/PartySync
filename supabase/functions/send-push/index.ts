@@ -1,5 +1,4 @@
-// Deno Edge Function: envoie du Web Push aux abonnements d’un user
-// deno.json dans le même dossier configure l’import de web-push
+// Deno Edge Function: envoie du Web Push aux abonnements d'un user
 import { serve } from 'https://deno.land/std@0.203.0/http/server.ts';
 import webpush from 'https://esm.sh/web-push@3';
 
@@ -10,35 +9,99 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 webpush.setVapidDetails('mailto:admin@example.com', VAPID_PUBLIC, VAPID_PRIVATE);
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'content-type, authorization, apikey',
+};
+
+const dbHeaders = {
+  apikey: SUPABASE_SERVICE_ROLE_KEY,
+  Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+  'Content-Type': 'application/json',
+};
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     const { userId, title, body, url } = await req.json();
 
-    // Récupère les abonnements push du user (via service role)
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?user_id=eq.${userId}&select=endpoint,p256dh,auth`, {
-      headers: {
-        apikey: SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-      },
-    });
+    if (!userId || !title) {
+      return new Response('Missing userId or title', {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
 
-    if (!resp.ok) return new Response(await resp.text(), { status: resp.status });
+    // Récupère les abonnements push du user
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/push_subscriptions?user_id=eq.${userId}&select=id,endpoint,p256dh,auth`,
+      { headers: dbHeaders }
+    );
 
-    const subs = await resp.json() as Array<{ endpoint: string; p256dh: string; auth: string }>;
+    if (!resp.ok) {
+      return new Response(await resp.text(), { status: resp.status, headers: corsHeaders });
+    }
+
+    const subs = await resp.json() as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>;
+
+    if (subs.length === 0) {
+      return new Response(
+        JSON.stringify({ ok: true, sent: 0, reason: 'no subscriptions' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const payload = JSON.stringify({ title, body, url });
 
     const results = await Promise.allSettled(
-      subs.map((s) => webpush.sendNotification({
-        endpoint: s.endpoint,
-        keys: { p256dh: s.p256dh, auth: s.auth }
-      } as any, payload))
+      subs.map((s) =>
+        webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } } as any,
+          payload
+        )
+      )
     );
 
-    // Nettoyage des endpoints invalides (optionnel)
-    // …
+    // Nettoyer les endpoints expirés (410 Gone ou 404 Not Found)
+    const staleEndpoints: string[] = [];
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        const err = result.reason as any;
+        const status = err?.statusCode ?? err?.status;
+        if (status === 410 || status === 404) {
+          staleEndpoints.push(subs[i].endpoint);
+          console.log(`[send-push] Stale subscription detected (${status}):`, subs[i].endpoint.slice(-20));
+        } else {
+          console.warn('[send-push] Send failed:', err?.message || err);
+        }
+      }
+    });
 
-    return new Response(JSON.stringify({ ok: true, sent: results.length }), { headers: { 'Content-Type': 'application/json' } });
+    if (staleEndpoints.length > 0) {
+      // Supprimer les endpoints invalides en batch
+      for (const endpoint of staleEndpoints) {
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`,
+          { method: 'DELETE', headers: dbHeaders }
+        ).catch((e) => console.warn('[send-push] Delete stale error:', e));
+      }
+      console.log(`[send-push] Removed ${staleEndpoints.length} stale subscription(s)`);
+    }
+
+    const sent = results.filter((r) => r.status === 'fulfilled').length;
+
+    return new Response(
+      JSON.stringify({ ok: true, sent, total: subs.length, staleRemoved: staleEndpoints.length }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   } catch (e) {
-    return new Response(`send-push error: ${e?.message || e}`, { status: 500 });
+    console.error('[send-push] Error:', e);
+    return new Response(`send-push error: ${(e as Error)?.message || e}`, {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 });
