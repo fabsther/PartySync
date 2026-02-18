@@ -10,9 +10,10 @@ import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
 import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
 import { InstallPrompt } from './components/InstallPrompt';
+import { ResetPasswordForm } from './components/ResetPasswordForm';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, isRecovering } = useAuth();
   const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile'>('parties');
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -136,6 +137,10 @@ function AppContent() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
+  }
+
+  if (isRecovering) {
+    return <ResetPasswordForm />;
   }
 
   if (!user) {
