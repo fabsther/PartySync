@@ -101,7 +101,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
       const newCode = generateInviteCode();
       const { error: insErr } = await supabase
         .from('invite_codes')
-        .insert(
+        .upsert(
           { code: newCode, created_by: ownerId },
           { onConflict: 'created_by', ignoreDuplicates: true }
         );
@@ -423,7 +423,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
               onChange={(e) => setNewCompanionName(e.target.value)}
               placeholder="Companion's name"
               className="flex-1 px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-              onKeyPress={(e) => {
+              onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   addCompanion();

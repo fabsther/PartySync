@@ -86,7 +86,7 @@ export function SubscribersList() {
       // insert with onConflict -> ignore si un autre client l'a créé entre-temps
       const { error: insertError } = await supabase
         .from('invite_codes')
-        .insert(
+        .upsert(
           { code: newCode, created_by: user.id },
           { onConflict: 'created_by', ignoreDuplicates: true }
         );
@@ -263,7 +263,7 @@ export function SubscribersList() {
             placeholder="Enter invite code"
             className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition uppercase font-mono tracking-wider text-center text-xl"
             maxLength={8}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 addFriendByCode();
