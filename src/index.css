@@ -16,3 +16,7 @@
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* iOS safe-area helpers for notch / Dynamic Island */
+.safe-top    { padding-top:    env(safe-area-inset-top,    0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }

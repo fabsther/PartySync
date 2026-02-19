@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png'],
+      includeAssets: ['icon-192.png', 'icon-512.png', 'icon-1024.png'],
       manifest: {
         name: 'PartySync',
         short_name: 'PartySync',
@@ -32,6 +32,12 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
+          },
+          {
+            src: 'icon-1024.png',
+            sizes: '1024x1024',
+            type: 'image/png',
+            purpose: 'any'
           }
         ]
       },

@@ -10,6 +10,7 @@ import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
 import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
 import { InstallPrompt } from './components/InstallPrompt';
+import { isIOS } from './lib/platform';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 
 function AppContent() {
@@ -45,7 +46,9 @@ function AppContent() {
 
     const hasAsked = localStorage.getItem('notification-permission-asked');
 
-    if (!hasAsked) {
+    if (!hasAsked && !isIOS()) {
+      // On iOS, Notification.requestPermission() requires a user gesture —
+      // the InstallPrompt component shows an "Enable notifications" button instead.
       setTimeout(() => {
         registerNotificationToken(user.id).then((success) => {
           if (success) localStorage.setItem('notification-permission-asked', 'true');
@@ -197,6 +200,8 @@ function AppContent() {
           }}
         />
       )}
+
+      <InstallPrompt userId={user?.id} />
     </>
   );
 }
@@ -205,7 +210,6 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
-      <InstallPrompt />
     </AuthProvider>
   );
 }
