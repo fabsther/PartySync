@@ -369,7 +369,7 @@ export function CarSharing({ partyId }: CarSharingProps) {
 
       if (updateError) throw updateError;
 
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('car_sharing')
         .insert({
           party_id: partyId,
@@ -378,7 +378,9 @@ export function CarSharing({ partyId }: CarSharingProps) {
           departure_location: myPassenger.pickupLocation,
           status: 'active',
           created_by: user!.id,
-        });
+        })
+        .select('id')
+        .single();
 
       if (insertError) throw insertError;
 
@@ -389,10 +391,10 @@ export function CarSharing({ partyId }: CarSharingProps) {
       );
 
       await sendRemoteNotification(
-        driverUserId,
+        offer.user_id,
         'Demande annulée',
         'Le passager a annulé sa demande.',
-        { partyId, action: 'request_cancelled_by_user', requestId },
+        { partyId, action: 'request_cancelled_by_user', requestId: insertData?.id },
         `/carsharing?partyId=${partyId}`
       );
 

@@ -26,7 +26,7 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
-      <nav className="bg-neutral-900 border-b border-neutral-800">
+      <nav className="bg-neutral-900 border-b border-neutral-800 safe-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -72,6 +72,10 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
               </button>
             </div>
 
+            <div className="flex items-center space-x-2">
+              <NotificationsBell userId={user?.id} />
+            </div>
+
             <div className="hidden md:flex items-center space-x-3">
               {canInstall && (
                 <button
@@ -82,7 +86,6 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
                   <Download className="w-5 h-5" />
                 </button>
               )}
-              <NotificationsBell userId={user?.id} />
               <button
                 onClick={onCreateParty}
                 className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition flex items-center space-x-2"
@@ -100,7 +103,6 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
             </div>
 
             <div className="md:hidden flex items-center space-x-2">
-              <NotificationsBell userId={user?.id} />
               {canInstall && (
                 <button
                   onClick={install}

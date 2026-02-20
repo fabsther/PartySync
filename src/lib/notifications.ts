@@ -72,67 +72,67 @@ async function registerPushSubscription(userId: string): Promise<boolean> {
 
     const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC;
     console.log('[Push] VAPID key loaded:', vapidPublicKey ? `${vapidPublicKey.substring(0, 20)}...` : 'NOT FOUND');
-    
+
     if (!vapidPublicKey) {
       console.log('VAPID public key not configured');
       return false;
     }
 
     const registration = await navigator.serviceWorker.ready;
-    
-    // Vérifier si une subscription existe déjà
+
+    // Envoyer la config au SW pour qu'il puisse gérer pushsubscriptionchange
+    registration.active?.postMessage({
+      type: 'PARTYSYNC_CONFIG',
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+      supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    });
+
+    // Récupérer ou créer la subscription
     let subscription = await registration.pushManager.getSubscription();
-    
+
     if (!subscription) {
-      // Créer une nouvelle subscription
       try {
         const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey.trim());
         console.log('[Push] Converted key length:', convertedVapidKey.length, '(should be 65)');
-        
+
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: convertedVapidKey,
         });
-        console.log('New push subscription created');
+        console.log('[Push] New push subscription created');
       } catch (subscribeError) {
         console.error('[Push] Subscribe error:', subscribeError);
         throw subscribeError;
       }
     }
 
-    // Extraire les clés de la subscription
+    // Toujours upsert en DB (même si la subscription existait déjà) pour s'assurer
+    // que l'endpoint courant est bien enregistré, y compris après un renouvellement.
     const subscriptionJson = subscription.toJSON();
     const endpoint = subscription.endpoint;
     const p256dh = subscriptionJson.keys?.p256dh || '';
     const auth = subscriptionJson.keys?.auth || '';
 
-    // Sauvegarder dans Supabase
     const { error } = await supabase
       .from('push_subscriptions')
       .upsert(
-        {
-          user_id: userId,
-          endpoint,
-          p256dh,
-          auth,
-          ua: navigator.userAgent,
-        },
-        {
-          onConflict: 'endpoint',
-        }
+        { user_id: userId, endpoint, p256dh, auth, ua: navigator.userAgent },
+        { onConflict: 'endpoint' }
       );
 
     if (error) {
-      console.error('Error saving push subscription:', error);
+      console.error('[Push] Error saving push subscription:', error);
       return false;
     }
 
+    console.log('[Push] Subscription saved to DB');
     return true;
   } catch (error) {
-    console.error('Error registering push subscription:', error);
+    console.error('[Push] Error registering push subscription:', error);
     return false;
   }
 }
+
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

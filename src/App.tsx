@@ -10,9 +10,11 @@ import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
 import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
 import { InstallPrompt } from './components/InstallPrompt';
+import { isIOS } from './lib/platform';
+import { ResetPasswordForm } from './components/ResetPasswordForm';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, isRecovering } = useAuth();
   const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile'>('parties');
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -38,23 +40,34 @@ function AppContent() {
     }
   }, [user]);
 
-  // Notifications (inchangé)
+  // Notifications : enregistrement au login + ré-enregistrement si le SW signale un changement
   useEffect(() => {
-    if (user && checkNotificationSupport()) {
-      const hasAskedForPermission = localStorage.getItem('notification-permission-asked');
+    if (!user || !checkNotificationSupport()) return;
 
-      if (!hasAskedForPermission) {
-        setTimeout(() => {
-          registerNotificationToken(user.id).then((success) => {
-            if (success) {
-              localStorage.setItem('notification-permission-asked', 'true');
-            }
-          });
-        }, 2000);
-      } else if (Notification.permission === 'granted') {
+    const hasAsked = localStorage.getItem('notification-permission-asked');
+
+    if (!hasAsked && !isIOS()) {
+      // On iOS, Notification.requestPermission() requires a user gesture —
+      // the InstallPrompt component shows an "Enable notifications" button instead.
+      setTimeout(() => {
+        registerNotificationToken(user.id).then((success) => {
+          if (success) localStorage.setItem('notification-permission-asked', 'true');
+        });
+      }, 2000);
+    } else if (Notification.permission === 'granted') {
+      registerNotificationToken(user.id);
+    }
+
+    // Ré-enregistrement immédiat si le SW détecte un changement de subscription
+    // (pushsubscriptionchange sans config dispo au moment de l'événement)
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PUSH_SUBSCRIPTION_CHANGED' && Notification.permission === 'granted') {
+        console.log('[App] SW signaled subscription change – re-registering');
         registerNotificationToken(user.id);
       }
-    }
+    };
+    navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleSWMessage);
   }, [user]);
 
   // --- NEW: logique consolidée (souscription + ajout à la party)
@@ -138,6 +151,10 @@ function AppContent() {
     );
   }
 
+  if (isRecovering) {
+    return <ResetPasswordForm />;
+  }
+
   if (!user) {
     return <AuthForm />;
   }
@@ -183,6 +200,8 @@ function AppContent() {
           }}
         />
       )}
+
+      <InstallPrompt userId={user?.id} />
     </>
   );
 }
@@ -191,7 +210,6 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
-      <InstallPrompt />
     </AuthProvider>
   );
 }

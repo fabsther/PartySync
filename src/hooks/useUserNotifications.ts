@@ -70,20 +70,14 @@ export function useUserNotifications(userId?: string) {
     console.log('[Realtime] Setting up subscription for user:', userId);
     
     const channel = supabase
-      .channel(`notifications-${userId}-${Date.now()}`)
+      .channel(`notifications-${userId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload) => {
           console.log('[Realtime] Received payload:', payload);
           const n = payload.new as AppNotification;
-          
-          // Filtrer côté client pour ne garder que les notifications de l'utilisateur
-          if (n.user_id !== userId) {
-            console.log('[Realtime] Ignoring notification for other user');
-            return;
-          }
-          
+
           console.log('[Realtime] Adding notification:', n);
           setItems(prev => {
             // Éviter les doublons
