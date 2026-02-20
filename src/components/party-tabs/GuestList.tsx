@@ -475,7 +475,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
                       {guest.user_id === user?.id ? 'Accept' : 'Set Confirmed'}
                     </button>
                   )}
-                  {guest.status !== 'declined' && (
+                  {guest.status !== 'declined' && !(isCreator && guest.user_id === user?.id) && (
                     <button
                       onClick={() => updateStatus(guest.id, 'declined')}
                       className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm"
@@ -483,7 +483,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
                       {guest.user_id === user?.id ? 'Decline' : 'Set Declined'}
                     </button>
                   )}
-                  {guest.status !== 'invited' && guest.user_id === user?.id && (
+                  {guest.status !== 'invited' && guest.user_id === user?.id && !isCreator && (
                     <button
                       onClick={() => updateStatus(guest.id, 'invited')}
                       className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-sm"
@@ -491,7 +491,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
                       Reset
                     </button>
                   )}
-                  {isCreator && guest.status !== 'invited' && (
+                  {isCreator && guest.status !== 'invited' && guest.user_id !== user?.id && (
                     <button
                       onClick={() => updateStatus(guest.id, 'invited')}
                       className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-sm"
