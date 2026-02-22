@@ -12,6 +12,7 @@ import { registerNotificationToken, checkNotificationSupport } from './lib/notif
 import { InstallPrompt } from './components/InstallPrompt';
 import { isIOS } from './lib/platform';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
+import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
 
 function AppContent() {
   const { user, loading, isRecovering } = useAuth();
@@ -19,25 +20,47 @@ function AppContent() {
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [welcomeParty, setWelcomeParty] = useState<WelcomePartyInfo | null>(null);
 
-  // --- NEW: traite ?invite=... & ?join_party=... quand l'utilisateur est connecté
+  // Sauvegarder les params d'invitation en sessionStorage dès le chargement de la page,
+  // pour qu'ils survivent au flux login/signup (au cas où le navigateur modifie l'URL)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    const joinParty = params.get('join_party');
+    if (invite) sessionStorage.setItem('pending_invite', invite);
+    if (joinParty) sessionStorage.setItem('pending_join_party', joinParty);
+  }, []);
+
+  // Traiter ?invite=... & ?join_party=... une fois l'utilisateur connecté
   useEffect(() => {
     if (!user) return;
 
     const url = new URL(window.location.href);
-    const inviteCode = url.searchParams.get('invite');
-    const joinPartyId = url.searchParams.get('join_party');
+    const inviteCode =
+      (url.searchParams.get('invite') || sessionStorage.getItem('pending_invite')) || undefined;
+    const joinPartyId =
+      (url.searchParams.get('join_party') || sessionStorage.getItem('pending_join_party')) || undefined;
 
-    if (inviteCode || joinPartyId) {
-      handleInviteLink(inviteCode || undefined, joinPartyId || undefined, user.id)
-        .catch((e) => console.error('Error handling invite/join:', e))
-        .finally(() => {
-          // Nettoyer l’URL pour éviter de rejouer au refresh
-          url.searchParams.delete('invite');
-          url.searchParams.delete('join_party');
-          window.history.replaceState({}, '', url.toString());
-        });
-    }
+    if (!inviteCode && !joinPartyId) return;
+
+    handleInviteLink(inviteCode, joinPartyId, user.id)
+      .then((partyInfo) => {
+        if (partyInfo) {
+          setActiveTab('parties');
+          setSelectedPartyId(partyInfo.id);
+          setRefreshKey((k) => k + 1);
+          setWelcomeParty(partyInfo);
+        }
+      })
+      .catch((e) => console.error('Error handling invite/join:', e))
+      .finally(() => {
+        sessionStorage.removeItem('pending_invite');
+        sessionStorage.removeItem('pending_join_party');
+        url.searchParams.delete('invite');
+        url.searchParams.delete('join_party');
+        window.history.replaceState({}, '', url.toString());
+      });
   }, [user]);
 
   // Notifications : enregistrement au login + ré-enregistrement si le SW signale un changement
@@ -70,14 +93,13 @@ function AppContent() {
     return () => navigator.serviceWorker.removeEventListener('message', handleSWMessage);
   }, [user]);
 
-  // --- NEW: logique consolidée (souscription + ajout à la party)
+  // Logique consolidée : souscription au créateur + ajout à la party
+  // Retourne les infos de la party rejointe (pour le modal de bienvenue), ou null
   const handleInviteLink = async (
     inviteCode: string | undefined,
     joinPartyId: string | undefined,
     currentUserId: string
-  ) => {
-    let ownerId: string | null = null;
-
+  ): Promise<WelcomePartyInfo | null> => {
     // 1) Si un code d'invite est fourni, trouver le créateur et s'y abonner (idempotent)
     if (inviteCode) {
       const code = inviteCode.trim().toUpperCase();
@@ -90,36 +112,32 @@ function AppContent() {
 
       if (codeErr) {
         console.error('Invite code lookup failed:', codeErr);
-      } else if (codeRow) {
-        ownerId = codeRow.created_by;
+      } else if (codeRow && codeRow.created_by !== currentUserId) {
+        const ownerId = codeRow.created_by;
 
-        // Empêcher l'auto-subscribe (au cas où)
-        if (ownerId !== currentUserId) {
-          // Vérifier si deja abonné
-          const { data: existingSub, error: exSubErr } = await supabase
+        const { data: existingSub, error: exSubErr } = await supabase
+          .from('subscribers')
+          .select('id')
+          .eq('user_id', ownerId)
+          .eq('subscriber_id', currentUserId)
+          .maybeSingle();
+
+        if (exSubErr && exSubErr.code !== 'PGRST116') {
+          console.error('Check existing subscription failed:', exSubErr);
+        } else if (!existingSub) {
+          const { error: insSubErr } = await supabase
             .from('subscribers')
-            .select('id')
-            .eq('user_id', ownerId)
-            .eq('subscriber_id', currentUserId)
-            .maybeSingle();
+            .insert({ user_id: ownerId, subscriber_id: currentUserId });
 
-          if (exSubErr && exSubErr.code !== 'PGRST116') {
-            console.error('Check existing subscription failed:', exSubErr);
-          } else if (!existingSub) {
-            const { error: insSubErr } = await supabase
-              .from('subscribers')
-              .insert({ user_id: ownerId, subscriber_id: currentUserId });
-
-            // 23505 = unique violation -> déjà abonné, on ignore
-            if (insSubErr && (insSubErr as any).code !== '23505') {
-              console.error('Insert subscription failed:', insSubErr);
-            }
+          if (insSubErr && (insSubErr as any).code !== '23505') {
+            console.error('Insert subscription failed:', insSubErr);
           }
         }
       }
     }
 
     // 2) Si join_party est présent, ajouter l'utilisateur aux guests (idempotent)
+    //    puis récupérer les infos de la party pour le modal de bienvenue
     if (joinPartyId) {
       const { data: existingGuest, error: exGuestErr } = await supabase
         .from('party_guests')
@@ -135,12 +153,36 @@ function AppContent() {
           .from('party_guests')
           .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
 
-        // 23505 = unique violation -> déjà invité, on ignore
         if (insGuestErr && (insGuestErr as any).code !== '23505') {
           console.error('Insert guest failed:', insGuestErr);
         }
       }
+
+      // Récupérer les infos de la party pour le modal de bienvenue
+      const { data: partyData } = await supabase
+        .from('parties')
+        .select('id, title, fixed_date, is_date_fixed, created_by')
+        .eq('id', joinPartyId)
+        .maybeSingle();
+
+      if (partyData) {
+        const { data: creatorProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', partyData.created_by)
+          .maybeSingle();
+
+        return {
+          id: partyData.id,
+          title: partyData.title,
+          fixed_date: partyData.fixed_date,
+          is_date_fixed: partyData.is_date_fixed,
+          creator_name: (creatorProfile as any)?.full_name ?? null,
+        };
+      }
     }
+
+    return null;
   };
 
   if (loading) {
@@ -202,6 +244,13 @@ function AppContent() {
       )}
 
       <InstallPrompt userId={user?.id} />
+
+      {welcomeParty && (
+        <WelcomePartyModal
+          party={welcomeParty}
+          onClose={() => setWelcomeParty(null)}
+        />
+      )}
     </>
   );
 }
