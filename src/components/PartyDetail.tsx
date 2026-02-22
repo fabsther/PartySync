@@ -192,8 +192,11 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
   };
 
   const sharePartyInvite = async () => {
-    if (!inviteCode || !party) return;
-    const link = `${window.location.origin}?invite=${inviteCode}&join_party=${party.id}`;
+    if (!party) return;
+    const base = window.location.origin;
+    const link = isCreator && inviteCode
+      ? `${base}?invite=${inviteCode}&join_party=${party.id}`
+      : `${base}?join_party=${party.id}`;
     if (navigator.share) {
       try {
         await navigator.share({
@@ -268,7 +271,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
                 <GuestCount partyId={partyId} />
               </div>
             </div>
-            {isCreator && !party.cancelled_at && (
+            {!party.cancelled_at && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={sharePartyInvite}
@@ -280,15 +283,17 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
                   ) : (
                     <Share2 className="w-4 h-4" />
                   )}
-                  <span>{copiedPartyLink ? 'Copié !' : 'Inviter'}</span>
+                  <span>{copiedPartyLink ? 'Copié !' : 'Partager'}</span>
                 </button>
-                <button
-                  onClick={openCancelModal}
-                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
-                  title="Annuler la soirée"
-                >
-                  <Ban className="w-5 h-5" />
-                </button>
+                {isCreator && (
+                  <button
+                    onClick={openCancelModal}
+                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
+                    title="Annuler la soirée"
+                  >
+                    <Ban className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             )}
           </div>
