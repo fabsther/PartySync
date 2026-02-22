@@ -63,6 +63,25 @@ export function useUserNotifications(userId?: string) {
     setItems(prev => prev.map(n => ({ ...n, read: true })));
   };
 
+  const deleteNotification = async (id: string) => {
+    const { error } = await supabase.from('notifications').delete().eq('id', id);
+    if (error) {
+      console.error('notifications delete error', error);
+      return;
+    }
+    setItems(prev => prev.filter(n => n.id !== id));
+  };
+
+  const deleteAllNotifications = async () => {
+    if (!userId || !items.length) return;
+    const { error } = await supabase.from('notifications').delete().eq('user_id', userId);
+    if (error) {
+      console.error('notifications delete all error', error);
+      return;
+    }
+    setItems([]);
+  };
+
   useEffect(() => {
     if (!userId) return;
     fetchPage();
@@ -128,5 +147,5 @@ export function useUserNotifications(userId?: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  return { items, unreadCount, loading, hasMore, fetchPage, markAsRead, markAllAsRead };
+  return { items, unreadCount, loading, hasMore, fetchPage, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications };
 }
