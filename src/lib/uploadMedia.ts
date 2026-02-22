@@ -29,6 +29,23 @@ export async function deletePartyMedia(url: string): Promise<void> {
   await supabase.storage.from('party-media').remove([path]);
 }
 
+export async function uploadAvatarMedia(file: File, userId: string): Promise<string> {
+  const MAX = 3 * 1024 * 1024;
+  if (file.size > MAX) throw new Error('L\'avatar doit faire moins de 3 MB');
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `avatars/${userId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('party-media')
+    .upload(path, file, { upsert: false, contentType: file.type });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('party-media').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /** Detect chat platform from URL for icon display */
 export function detectChatPlatform(url: string): 'whatsapp' | 'telegram' | 'signal' | 'discord' | 'other' {
   try {

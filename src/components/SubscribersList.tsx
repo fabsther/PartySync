@@ -9,6 +9,7 @@ interface Subscriber {
   profiles: {
     full_name: string | null;
     email: string;
+    avatar_url: string | null;
   };
 }
 
@@ -34,7 +35,7 @@ export function SubscribersList() {
     try {
       const { data: mySubscribers, error: subError } = await supabase
         .from('subscribers')
-        .select('id, subscriber_id, profiles!subscribers_subscriber_id_fkey(full_name, email)')
+        .select('id, subscriber_id, profiles!subscribers_subscriber_id_fkey(full_name, email, avatar_url)')
         .eq('user_id', user.id);
 
       if (subError) throw subError;
@@ -42,7 +43,7 @@ export function SubscribersList() {
 
       const { data: iSubscribeTo, error: followError } = await supabase
         .from('subscribers')
-        .select('id, user_id, profiles!subscribers_user_id_fkey(full_name, email)')
+        .select('id, user_id, profiles!subscribers_user_id_fkey(full_name, email, avatar_url)')
         .eq('subscriber_id', user.id);
 
       if (followError) throw followError;
@@ -337,9 +338,13 @@ export function SubscribersList() {
                   key={sub.id}
                   className="flex items-center gap-3 bg-neutral-800 rounded-lg p-3"
                 >
-                  <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                    {(sub.profiles.full_name || sub.profiles.email)[0].toUpperCase()}
-                  </div>
+                  {sub.profiles.avatar_url ? (
+                    <img src={sub.profiles.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                      {(sub.profiles.full_name || sub.profiles.email)[0].toUpperCase()}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="text-white font-medium truncate">
                       {sub.profiles.full_name || 'User'}
@@ -388,9 +393,13 @@ export function SubscribersList() {
                   key={sub.id}
                   className="flex items-center gap-3 bg-neutral-800 rounded-lg p-3"
                 >
-                  <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                    {(sub.profiles.full_name || sub.profiles.email)[0].toUpperCase()}
-                  </div>
+                  {sub.profiles.avatar_url ? (
+                    <img src={sub.profiles.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                      {(sub.profiles.full_name || sub.profiles.email)[0].toUpperCase()}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="text-white font-medium truncate">
                       {sub.profiles.full_name || 'User'}

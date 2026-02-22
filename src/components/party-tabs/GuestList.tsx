@@ -19,6 +19,7 @@ interface Guest {
   profiles: {
     full_name: string | null;
     email: string;
+    avatar_url: string | null;
   };
 }
 
@@ -55,7 +56,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
     try {
       const { data, error } = await supabase
         .from('party_guests')
-        .select('id, user_id, status, companions, profiles(full_name, email), guest_companions(id, name)')
+        .select('id, user_id, status, companions, profiles(full_name, email, avatar_url), guest_companions(id, name)')
         .eq('party_id', partyId);
 
       if (error) throw error;
@@ -451,6 +452,13 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
               className="flex items-center justify-between bg-neutral-800 rounded-lg p-4"
             >
               <div className="flex items-center space-x-3 flex-1">
+                {guest.profiles.avatar_url ? (
+                  <img src={guest.profiles.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                    {(guest.profiles.full_name || guest.profiles.email)[0].toUpperCase()}
+                  </div>
+                )}
                 {getStatusIcon(guest.status)}
                 <div className="flex-1">
                   <div className="text-white font-medium">
