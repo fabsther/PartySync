@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { PartyPopper } from 'lucide-react';
+import { PartyPopper, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export function AuthForm() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const hasInvite = !!(
+    new URLSearchParams(window.location.search).get('invite') ||
+    new URLSearchParams(window.location.search).get('join_party')
+  );
+  const [isSignUp, setIsSignUp] = useState(hasInvite);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +54,30 @@ export function AuthForm() {
           <h2 className="text-4xl font-bold text-white mb-2">PartySync</h2>
           <p className="text-neutral-400">Organize perfect parties together</p>
         </div>
+
+        {!isForgotPassword && (
+          <div className="text-center space-y-2 pt-2">
+            <p className="text-neutral-300 text-sm">
+              PartySync te permet d'organiser tes soirées en collaboration avec tes amis.
+            </p>
+            <p className="text-neutral-500 text-xs flex items-center justify-center gap-1.5">
+              <Bell className="w-3 h-3 flex-shrink-0" />
+              Installe l'app pour recevoir des notifications sur tes soirées.
+            </p>
+          </div>
+        )}
+
+        {hasInvite && !isForgotPassword && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex items-start gap-3">
+            <PartyPopper className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-orange-300 font-medium text-sm">Tu as été invité(e) à une soirée !</p>
+              <p className="text-neutral-400 text-xs mt-1">
+                {isSignUp ? 'Crée ton compte pour rejoindre la fête.' : 'Connecte-toi pour rejoindre la fête.'}
+              </p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">

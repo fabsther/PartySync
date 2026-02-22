@@ -10,6 +10,8 @@ import {
   UtensilsCrossed,
   ExternalLink,
   Trash2,
+  Share2,
+  Check,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,11 +47,52 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('guests');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string>('');
+  const [copiedPartyLink, setCopiedPartyLink] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     loadParty();
   }, [partyId]);
+
+  useEffect(() => {
+    if (party && user && party.created_by === user.id) {
+      loadInviteCode();
+    }
+  }, [partyId, user?.id, party?.created_by]);
+
+  const loadInviteCode = async () => {
+    if (!user) return;
+    try {
+      const { data: existing } = await supabase
+        .from('invite_codes')
+        .select('code')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        setInviteCode(existing[0].code);
+        return;
+      }
+
+      const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      await supabase.from('invite_codes').upsert(
+        { code: newCode, created_by: user.id },
+        { onConflict: 'created_by', ignoreDuplicates: true }
+      );
+      const { data: final } = await supabase
+        .from('invite_codes')
+        .select('code')
+        .eq('created_by', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (final) setInviteCode(final.code);
+    } catch (e) {
+      console.error('Error loading invite code:', e);
+    }
+  };
 
   const loadParty = async () => {
     try {
@@ -110,6 +153,26 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
     }
   };
 
+  const sharePartyInvite = async () => {
+    if (!inviteCode || !party) return;
+    const link = `${window.location.origin}?invite=${inviteCode}&join_party=${party.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Invitation : ${party.title}`,
+          text: `Tu es invité(e) à "${party.title}" sur PartySync !`,
+          url: link,
+        });
+      } catch {
+        // user cancelled
+      }
+    } else {
+      navigator.clipboard.writeText(link);
+      setCopiedPartyLink(true);
+      setTimeout(() => setCopiedPartyLink(false), 2000);
+    }
+  };
+
   const isCreator = user?.id === party?.created_by;
 
   if (loading) {
@@ -153,13 +216,27 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
               </div>
             </div>
             {isCreator && (
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
-                title="Delete Party"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={sharePartyInvite}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg transition text-sm font-medium"
+                  title="Partager l'invitation"
+                >
+                  {copiedPartyLink ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Share2 className="w-4 h-4" />
+                  )}
+                  <span>{copiedPartyLink ? 'Copié !' : 'Inviter'}</span>
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
+                  title="Delete Party"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
             )}
           </div>
 
