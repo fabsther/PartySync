@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserPlus, Users, Share2, Copy, Check } from 'lucide-react';
+import { UserPlus, UserMinus, Users, Share2, Copy, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -127,6 +127,43 @@ export function SubscribersList() {
       setTimeout(() => setCopiedCode(false), 2000);
     };
   
+  const kickSubscriber = async (rowId: string) => {
+    try {
+      const { error } = await supabase.from('subscribers').delete().eq('id', rowId);
+      if (error) throw error;
+      setSubscribers(prev => prev.filter(s => s.id !== rowId));
+    } catch (e) {
+      console.error('Error kicking subscriber:', e);
+    }
+  };
+
+  const unsubscribeFrom = async (rowId: string) => {
+    try {
+      const { error } = await supabase.from('subscribers').delete().eq('id', rowId);
+      if (error) throw error;
+      setSubscribedTo(prev => prev.filter(s => s.id !== rowId));
+    } catch (e) {
+      console.error('Error unsubscribing:', e);
+    }
+  };
+
+  const subscribeBack = async (targetUserId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase.from('subscribers').insert({
+        user_id: targetUserId,
+        subscriber_id: user.id,
+      });
+      if (error && (error as any).code !== '23505') throw error;
+      await loadSubscribers();
+    } catch (e) {
+      console.error('Error subscribing back:', e);
+    }
+  };
+
+  // IDs des gens auxquels je suis déjà abonné
+  const subscribedToIds = new Set(subscribedTo.map(s => s.subscriber_id));
+
    const addFriendByCode = async () => {
     if (!user || !friendCode.trim()) return;
   
@@ -298,16 +335,34 @@ export function SubscribersList() {
               subscribers.map((sub) => (
                 <div
                   key={sub.id}
-                  className="flex items-center space-x-3 bg-neutral-800 rounded-lg p-4"
+                  className="flex items-center gap-3 bg-neutral-800 rounded-lg p-3"
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
                     {(sub.profiles.full_name || sub.profiles.email)[0].toUpperCase()}
                   </div>
-                  <div>
-                    <div className="text-white font-medium">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">
                       {sub.profiles.full_name || 'User'}
                     </div>
-                    <div className="text-sm text-neutral-400">{sub.profiles.email}</div>
+                    <div className="text-xs text-neutral-400 truncate">{sub.profiles.email}</div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {!subscribedToIds.has(sub.subscriber_id) && (
+                      <button
+                        onClick={() => subscribeBack(sub.subscriber_id)}
+                        className="p-1.5 rounded-lg text-green-400 hover:bg-green-500/10 transition"
+                        title="S'abonner en retour"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => kickSubscriber(sub.id)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition"
+                      title="Retirer ce subscriber"
+                    >
+                      <UserMinus className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))
@@ -331,17 +386,24 @@ export function SubscribersList() {
               subscribedTo.map((sub) => (
                 <div
                   key={sub.id}
-                  className="flex items-center space-x-3 bg-neutral-800 rounded-lg p-4"
+                  className="flex items-center gap-3 bg-neutral-800 rounded-lg p-3"
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold">
+                  <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
                     {(sub.profiles.full_name || sub.profiles.email)[0].toUpperCase()}
                   </div>
-                  <div>
-                    <div className="text-white font-medium">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">
                       {sub.profiles.full_name || 'User'}
                     </div>
-                    <div className="text-sm text-neutral-400">{sub.profiles.email}</div>
+                    <div className="text-xs text-neutral-400 truncate">{sub.profiles.email}</div>
                   </div>
+                  <button
+                    onClick={() => unsubscribeFrom(sub.id)}
+                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition flex-shrink-0"
+                    title="Se désabonner"
+                  >
+                    <UserMinus className="w-4 h-4" />
+                  </button>
                 </div>
               ))
             )}
