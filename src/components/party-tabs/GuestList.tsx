@@ -465,7 +465,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
                 </div>
               </div>
 
-              {(guest.user_id === user?.id || isCreator) && (
+              {(guest.user_id === user?.id || isCreator) && !(isCreator && guest.user_id === user?.id) && (
                 <div className="flex space-x-2">
                   {guest.status !== 'confirmed' && (
                     <button
@@ -475,7 +475,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
                       {guest.user_id === user?.id ? 'Accept' : 'Set Confirmed'}
                     </button>
                   )}
-                  {guest.status !== 'declined' && !(isCreator && guest.user_id === user?.id) && (
+                  {guest.status !== 'declined' && (
                     <button
                       onClick={() => updateStatus(guest.id, 'declined')}
                       className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm"
