@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, Check, Loader2 } from 'lucide-react';
+import { Bell, Check, Loader2, Trash2, X } from 'lucide-react';
 import { useUserNotifications } from '../hooks/useUserNotifications';
 
 type Props = {
@@ -7,7 +7,7 @@ type Props = {
 };
 
 export function NotificationsBell({ userId }: Props) {
-  const { items, unreadCount, loading, hasMore, fetchPage, markAsRead, markAllAsRead } =
+  const { items, unreadCount, loading, hasMore, fetchPage, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } =
     useUserNotifications(userId);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -45,12 +45,26 @@ export function NotificationsBell({ userId }: Props) {
         <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-16 sm:top-auto sm:mt-2 w-auto sm:w-96 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl overflow-hidden z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800">
             <div className="font-semibold">Notifications</div>
-            <button
-              onClick={markAllAsRead}
-              className="text-xs text-neutral-400 hover:text-white flex items-center gap-1"
-            >
-              <Check className="w-4 h-4" /> Tout marquer comme lu
-            </button>
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-xs text-neutral-400 hover:text-white flex items-center gap-1"
+                  title="Tout marquer comme lu"
+                >
+                  <Check className="w-4 h-4" /> Tout lire
+                </button>
+              )}
+              {items.length > 0 && (
+                <button
+                  onClick={deleteAllNotifications}
+                  className="text-xs text-neutral-400 hover:text-red-400 flex items-center gap-1"
+                  title="Tout supprimer"
+                >
+                  <Trash2 className="w-4 h-4" /> Tout supprimer
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto divide-y divide-neutral-800">
@@ -77,14 +91,24 @@ export function NotificationsBell({ userId }: Props) {
                       </a>
                     )}
                   </div>
-                  {!n.read && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!n.read && (
+                      <button
+                        onClick={() => markAsRead(n.id)}
+                        className="text-xs px-2 py-1 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700"
+                        title="Marquer comme lu"
+                      >
+                        Lu
+                      </button>
+                    )}
                     <button
-                      onClick={() => markAsRead(n.id)}
-                      className="text-xs px-2 py-1 rounded bg-neutral-800 border border-neutral-700 hover:bg-neutral-700"
+                      onClick={() => deleteNotification(n.id)}
+                      className="p-1 rounded text-neutral-500 hover:text-red-400 hover:bg-neutral-800 transition"
+                      title="Supprimer"
                     >
-                      Lu
+                      <X className="w-4 h-4" />
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
