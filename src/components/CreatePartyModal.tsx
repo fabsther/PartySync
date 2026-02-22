@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { X, ImagePlus, Smile } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { uploadPartyMedia } from '../lib/uploadMedia';
 
 interface CreatePartyModalProps {
   onClose: () => void;
@@ -20,7 +21,26 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
     entry_instructions: '',
     is_date_fixed: true,
     fixed_date: '',
+    chat_url: '',
   });
+
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
+
+  const bannerRef = useRef<HTMLInputElement>(null);
+  const iconRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (
+    file: File,
+    setFile: (f: File) => void,
+    setPreview: (url: string) => void
+  ) => {
+    if (!file.type.startsWith('image/')) return;
+    setFile(file);
+    setPreview(URL.createObjectURL(file));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,12 +50,21 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
     setError('');
 
     try {
+      let banner_url: string | null = null;
+      let icon_url: string | null = null;
+
+      if (bannerFile) banner_url = await uploadPartyMedia(bannerFile, user.id, 'banner');
+      if (iconFile) icon_url = await uploadPartyMedia(iconFile, user.id, 'icon');
+
       const { data: party, error: partyError } = await supabase
         .from('parties')
         .insert({
           ...formData,
           created_by: user.id,
           fixed_date: formData.is_date_fixed && formData.fixed_date ? formData.fixed_date : null,
+          chat_url: formData.chat_url.trim() || null,
+          banner_url,
+          icon_url,
         })
         .select()
         .single();
@@ -48,7 +77,6 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
           user_id: user.id,
           status: 'confirmed',
         });
-
         if (guestError) throw guestError;
       }
 
@@ -75,10 +103,81 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+          {/* Banner */}
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Party Title
+              Bannière <span className="text-neutral-500">(optionnel)</span>
             </label>
+            <div
+              onClick={() => bannerRef.current?.click()}
+              className="relative w-full h-36 rounded-xl border-2 border-dashed border-neutral-700 hover:border-orange-500 transition cursor-pointer overflow-hidden flex items-center justify-center bg-neutral-800"
+            >
+              {bannerPreview ? (
+                <img src={bannerPreview} alt="banner" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-neutral-500">
+                  <ImagePlus className="w-8 h-8" />
+                  <span className="text-sm">Cliquer pour ajouter une bannière</span>
+                </div>
+              )}
+              {bannerPreview && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setBannerFile(null); setBannerPreview(null); }}
+                  className="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white hover:bg-black/80"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <input
+              ref={bannerRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0], setBannerFile, setBannerPreview)}
+            />
+          </div>
+
+          {/* Icon */}
+          <div className="flex items-center gap-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                Icône <span className="text-neutral-500">(optionnel)</span>
+              </label>
+              <div
+                onClick={() => iconRef.current?.click()}
+                className="w-20 h-20 rounded-2xl border-2 border-dashed border-neutral-700 hover:border-orange-500 transition cursor-pointer overflow-hidden flex items-center justify-center bg-neutral-800"
+              >
+                {iconPreview ? (
+                  <img src={iconPreview} alt="icon" className="w-full h-full object-cover" />
+                ) : (
+                  <Smile className="w-8 h-8 text-neutral-500" />
+                )}
+              </div>
+              <input
+                ref={iconRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0], setIconFile, setIconPreview)}
+              />
+            </div>
+            {iconPreview && (
+              <button
+                type="button"
+                onClick={() => { setIconFile(null); setIconPreview(null); }}
+                className="text-xs text-red-400 hover:text-red-300 mt-6"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Party Title</label>
             <input
               type="text"
               required
@@ -89,10 +188,9 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Description
-            </label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Description</label>
             <textarea
               rows={3}
               value={formData.description}
@@ -102,6 +200,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             />
           </div>
 
+          {/* Date */}
           <div className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -117,9 +216,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
 
           {formData.is_date_fixed && (
             <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Party Date & Time
-              </label>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">Party Date & Time</label>
               <input
                 type="datetime-local"
                 value={formData.fixed_date}
@@ -129,10 +226,9 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             </div>
           )}
 
+          {/* Address */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Address
-            </label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Address</label>
             <input
               type="text"
               value={formData.address}
@@ -142,10 +238,9 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             />
           </div>
 
+          {/* Schedule */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Schedule
-            </label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Schedule</label>
             <textarea
               rows={2}
               value={formData.schedule}
@@ -155,16 +250,29 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             />
           </div>
 
+          {/* Entry instructions */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Entry Instructions
-            </label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">Entry Instructions</label>
             <textarea
               rows={2}
               value={formData.entry_instructions}
               onChange={(e) => setFormData({ ...formData, entry_instructions: e.target.value })}
               className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
               placeholder="Ring the doorbell, gate code is 1234"
+            />
+          </div>
+
+          {/* Chat group link */}
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">
+              Lien groupe <span className="text-neutral-500">(WhatsApp, Telegram… — optionnel)</span>
+            </label>
+            <input
+              type="url"
+              value={formData.chat_url}
+              onChange={(e) => setFormData({ ...formData, chat_url: e.target.value })}
+              className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
+              placeholder="https://chat.whatsapp.com/..."
             />
           </div>
 

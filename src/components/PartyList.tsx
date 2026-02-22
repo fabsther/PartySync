@@ -13,6 +13,8 @@ interface Party {
   created_at: string;
   created_by: string;
   cancelled_at: string | null;
+  banner_url: string | null;
+  icon_url: string | null;
 }
 
 interface PartyListProps {
@@ -90,45 +92,70 @@ export function PartyList({ onSelectParty }: PartyListProps) {
         <button
           key={party.id}
           onClick={() => onSelectParty(party.id)}
-          className={`bg-neutral-900 border rounded-xl p-6 transition-all text-left group ${
+          className={`relative border rounded-xl overflow-hidden transition-all text-left group ${
             party.cancelled_at
               ? 'border-red-500/30 opacity-70 hover:border-red-500/50'
               : 'border-neutral-800 hover:border-orange-500'
           }`}
         >
-          <div className="flex items-start justify-between mb-4">
-            <h3 className={`text-xl font-semibold transition ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white group-hover:text-orange-400'}`}>
-              {party.title}
-            </h3>
-            {party.cancelled_at ? (
-              <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full shrink-0 ml-2">
-                Annulée
-              </span>
-            ) : !party.is_date_fixed ? (
-              <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full shrink-0 ml-2">
-                Vote
-              </span>
-            ) : null}
-          </div>
+          {/* Banner */}
+          {party.banner_url && (
+            <div className="relative h-28 w-full">
+              <img src={party.banner_url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/70" />
+              <div className="absolute top-2 right-2 flex gap-1">
+                {party.cancelled_at ? (
+                  <span className="px-2 py-0.5 bg-red-500/80 text-white text-xs rounded-full">Annulée</span>
+                ) : !party.is_date_fixed ? (
+                  <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs rounded-full">Vote</span>
+                ) : null}
+              </div>
+            </div>
+          )}
 
-          <p className="text-neutral-400 text-sm mb-4 line-clamp-2">{party.description}</p>
-
-          <div className="space-y-2">
-            <div className="flex items-center text-sm text-neutral-500">
-              {party.is_date_fixed ? (
-                <Calendar className="w-4 h-4 mr-2" />
-              ) : (
-                <Clock className="w-4 h-4 mr-2" />
+          <div className="bg-neutral-900 p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {party.icon_url && (
+                  <img
+                    src={party.icon_url}
+                    alt=""
+                    className={`w-8 h-8 rounded-lg object-cover flex-shrink-0 ${party.banner_url ? '-mt-10 border-2 border-neutral-900' : ''}`}
+                  />
+                )}
+                <h3 className={`text-xl font-semibold transition truncate ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white group-hover:text-orange-400'}`}>
+                  {party.title}
+                </h3>
+              </div>
+              {!party.banner_url && (
+                <div className="flex gap-1 shrink-0 ml-2">
+                  {party.cancelled_at ? (
+                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">Annulée</span>
+                  ) : !party.is_date_fixed ? (
+                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">Vote</span>
+                  ) : null}
+                </div>
               )}
-              {formatDate(party.fixed_date)}
             </div>
 
-            {party.address && (
+            <p className="text-neutral-400 text-sm mb-3 line-clamp-2">{party.description}</p>
+
+            <div className="space-y-1.5">
               <div className="flex items-center text-sm text-neutral-500">
-                <MapPin className="w-4 h-4 mr-2" />
-                <span className="truncate">{party.address}</span>
+                {party.is_date_fixed ? (
+                  <Calendar className="w-4 h-4 mr-2 shrink-0" />
+                ) : (
+                  <Clock className="w-4 h-4 mr-2 shrink-0" />
+                )}
+                {formatDate(party.fixed_date)}
               </div>
-            )}
+              {party.address && (
+                <div className="flex items-center text-sm text-neutral-500">
+                  <MapPin className="w-4 h-4 mr-2 shrink-0" />
+                  <span className="truncate">{party.address}</span>
+                </div>
+              )}
+            </div>
           </div>
         </button>
       ))}
