@@ -9,12 +9,14 @@ import {
   Wrench,
   UtensilsCrossed,
   ExternalLink,
-  Trash2,
+  Ban,
+  XCircle,
   Share2,
   Check,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { sendRemoteNotification } from '../lib/remoteNotify';
 import { GuestList } from './party-tabs/GuestList';
 import { CarSharing } from './party-tabs/CarSharing';
 import { Equipment } from './party-tabs/Equipment';
@@ -31,6 +33,7 @@ interface Party {
   is_date_fixed: boolean;
   fixed_date: string | null;
   created_by: string;
+  cancelled_at: string | null;
 }
 
 interface PartyDetailProps {
@@ -45,8 +48,9 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
   const [party, setParty] = useState<Party | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('guests');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [confirmedGuests, setConfirmedGuests] = useState<{ user_id: string }[] | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [inviteCode, setInviteCode] = useState<string>('');
   const [copiedPartyLink, setCopiedPartyLink] = useState(false);
   const { user } = useAuth();
@@ -134,22 +138,56 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
     window.open(url, '_blank');
   };
 
-  const handleDeleteParty = async () => {
-    if (!party || !user || party.created_by !== user.id) return;
+  // Ouvre le modal et vérifie si des invités ont confirmé (hors créateur)
+  const openCancelModal = async () => {
+    setShowCancelModal(true);
+    setConfirmedGuests(null);
+    const { data } = await supabase
+      .from('party_guests')
+      .select('user_id')
+      .eq('party_id', partyId)
+      .eq('status', 'confirmed')
+      .neq('user_id', user!.id);
+    setConfirmedGuests(data || []);
+  };
 
-    setDeleting(true);
+  const handleCancelOrDelete = async () => {
+    if (!party || !user) return;
+    setCancelling(true);
     try {
-      const { error } = await supabase.from('parties').delete().eq('id', partyId);
+      if (confirmedGuests && confirmedGuests.length > 0) {
+        // Soft-cancel : marquer annulée + notifier les invités
+        const { error } = await supabase
+          .from('parties')
+          .update({ cancelled_at: new Date().toISOString() })
+          .eq('id', partyId);
+        if (error) throw error;
 
-      if (error) throw error;
+        await Promise.allSettled(
+          confirmedGuests.map((g) =>
+            sendRemoteNotification(
+              g.user_id,
+              '❌ Soirée annulée',
+              `"${party.title}" a ete annulee par l'organisateur.`,
+              { partyId: party.id }
+            )
+          )
+        );
 
-      setShowDeleteModal(false);
-      onDelete();
+        setParty((prev) => (prev ? { ...prev, cancelled_at: new Date().toISOString() } : null));
+        setShowCancelModal(false);
+      } else {
+        // Hard-delete : aucun invité confirmé
+        const { error } = await supabase.from('parties').delete().eq('id', partyId);
+        if (error) throw error;
+        setShowCancelModal(false);
+        onDelete();
+      }
     } catch (error) {
-      console.error('Error deleting party:', error);
-      alert('Failed to delete party. Please try again.');
+      console.error('Error cancelling/deleting party:', error);
+      alert('Une erreur est survenue. Reessaie.');
     } finally {
-      setDeleting(false);
+      setCancelling(false);
     }
   };
 
@@ -203,9 +241,24 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
         <div className="p-6 border-b border-neutral-800">
+          {party.cancelled_at && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-5 flex items-center gap-3">
+              <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <div>
+                <p className="text-red-400 font-semibold">Soirée annulée</p>
+                <p className="text-neutral-400 text-sm">
+                  Annulée le{' '}
+                  {new Date(party.cancelled_at).toLocaleDateString('fr-FR', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-white mb-2">{party.title}</h1>
+              <h1 className={`text-3xl font-bold mb-2 ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white'}`}>{party.title}</h1>
               <div className="flex items-center space-x-3">
                 {!party.is_date_fixed && (
                   <span className="inline-block px-3 py-1 bg-orange-500/20 text-orange-400 text-sm rounded-full">
@@ -215,7 +268,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
                 <GuestCount partyId={partyId} />
               </div>
             </div>
-            {isCreator && (
+            {isCreator && !party.cancelled_at && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={sharePartyInvite}
@@ -230,11 +283,11 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
                   <span>{copiedPartyLink ? 'Copié !' : 'Inviter'}</span>
                 </button>
                 <button
-                  onClick={() => setShowDeleteModal(true)}
+                  onClick={openCancelModal}
                   className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
-                  title="Delete Party"
+                  title="Annuler la soirée"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Ban className="w-5 h-5" />
                 </button>
               </div>
             )}
@@ -363,41 +416,63 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
         </div>
       </div>
 
-      {showDeleteModal && (
+      {showCancelModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center space-x-3 mb-4">
+            <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-red-500/20 rounded-lg">
-                <Trash2 className="w-6 h-6 text-red-400" />
+                <Ban className="w-6 h-6 text-red-400" />
               </div>
-              <h3 className="text-xl font-bold text-white">Delete Party</h3>
+              <h3 className="text-xl font-bold text-white">Annuler la soirée</h3>
             </div>
-            <p className="text-neutral-300 mb-6">
-              Are you sure you want to delete this party? This action cannot be undone and will remove all associated data including guests, equipment, and food items.
-            </p>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deleting}
-                className="flex-1 px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteParty}
-                disabled={deleting}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center space-x-2"
-              >
-                {deleting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <span>Delete Party</span>
-                )}
-              </button>
-            </div>
+
+            {confirmedGuests === null ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+              </div>
+            ) : confirmedGuests.length > 0 ? (
+              <p className="text-neutral-300 mb-6">
+                <span className="text-orange-400 font-medium">
+                  {confirmedGuests.length} invité{confirmedGuests.length > 1 ? 's' : ''}
+                </span>{' '}
+                {confirmedGuests.length > 1 ? 'ont' : 'a'} confirmé leur présence. La soirée sera{' '}
+                <strong className="text-white">marquée comme annulée</strong> et ils recevront une notification.
+                Elle disparaîtra automatiquement de la liste après la date prévue.
+              </p>
+            ) : (
+              <p className="text-neutral-300 mb-6">
+                Aucun invité n'a confirmé sa présence. La soirée sera{' '}
+                <strong className="text-white">définitivement supprimée</strong>.
+              </p>
+            )}
+
+            {confirmedGuests !== null && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition disabled:opacity-50"
+                >
+                  Retour
+                </button>
+                <button
+                  onClick={handleCancelOrDelete}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {cancelling ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      <span>En cours...</span>
+                    </>
+                  ) : confirmedGuests.length > 0 ? (
+                    <span>Confirmer l'annulation</span>
+                  ) : (
+                    <span>Supprimer</span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

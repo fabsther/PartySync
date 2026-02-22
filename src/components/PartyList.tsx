@@ -12,6 +12,7 @@ interface Party {
   fixed_date: string | null;
   created_at: string;
   created_by: string;
+  cancelled_at: string | null;
 }
 
 interface PartyListProps {
@@ -65,7 +66,15 @@ export function PartyList({ onSelectParty }: PartyListProps) {
     );
   }
 
-  if (parties.length === 0) {
+  // Parties annulées : masquer une fois que la date est passée
+  const now = new Date();
+  const visibleParties = parties.filter((p) => {
+    if (!p.cancelled_at) return true;
+    if (!p.fixed_date) return true;
+    return new Date(p.fixed_date) > now;
+  });
+
+  if (visibleParties.length === 0) {
     return (
       <div className="text-center py-12">
         <Calendar className="w-16 h-16 text-neutral-700 mx-auto mb-4" />
@@ -77,21 +86,29 @@ export function PartyList({ onSelectParty }: PartyListProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {parties.map((party) => (
+      {visibleParties.map((party) => (
         <button
           key={party.id}
           onClick={() => onSelectParty(party.id)}
-          className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 hover:border-orange-500 transition-all text-left group"
+          className={`bg-neutral-900 border rounded-xl p-6 transition-all text-left group ${
+            party.cancelled_at
+              ? 'border-red-500/30 opacity-70 hover:border-red-500/50'
+              : 'border-neutral-800 hover:border-orange-500'
+          }`}
         >
           <div className="flex items-start justify-between mb-4">
-            <h3 className="text-xl font-semibold text-white group-hover:text-orange-400 transition">
+            <h3 className={`text-xl font-semibold transition ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white group-hover:text-orange-400'}`}>
               {party.title}
             </h3>
-            {!party.is_date_fixed && (
-              <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">
+            {party.cancelled_at ? (
+              <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full shrink-0 ml-2">
+                Annulée
+              </span>
+            ) : !party.is_date_fixed ? (
+              <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full shrink-0 ml-2">
                 Vote
               </span>
-            )}
+            ) : null}
           </div>
 
           <p className="text-neutral-400 text-sm mb-4 line-clamp-2">{party.description}</p>
