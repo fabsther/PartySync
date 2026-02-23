@@ -16,6 +16,7 @@ import {
   Share2,
   Check,
   MessageCircle,
+  MessageSquare,
   ImagePlus,
   Smile,
   X as XIcon,
@@ -29,6 +30,7 @@ import { GuestList } from './party-tabs/GuestList';
 import { CarSharing } from './party-tabs/CarSharing';
 import { Equipment } from './party-tabs/Equipment';
 import { FoodBeverage } from './party-tabs/FoodBeverage';
+import { Posts } from './party-tabs/Posts';
 import { GuestCount } from './GuestCount';
 
 interface Party {
@@ -53,7 +55,7 @@ interface PartyDetailProps {
   onDelete: () => void;
 }
 
-type Tab = 'guests' | 'carshare' | 'equipment' | 'food';
+type Tab = 'guests' | 'carshare' | 'equipment' | 'food' | 'posts';
 
 export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
   const [party, setParty] = useState<Party | null>(null);
@@ -644,6 +646,17 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
               <UtensilsCrossed className="w-5 h-5" />
               <span>Food & Drinks</span>
             </button>
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`flex items-center space-x-2 px-6 py-4 font-medium transition whitespace-nowrap ${
+                activeTab === 'posts'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span>Posts</span>
+            </button>
           </div>
         </div>
 
@@ -662,6 +675,9 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
           {activeTab === 'carshare' && <CarSharing partyId={partyId} />}
           {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}
+          {activeTab === 'posts' && (
+            <Posts partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />
+          )}
         </div>
       </div>
 
