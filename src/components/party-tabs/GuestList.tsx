@@ -89,7 +89,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     }
   };
 
-  // NEW: lecture (ou création si absent) du code d’invitation de l’organisateur
+  // NEW: lecture (ou création si absent) du code d'invitation de l'organisateur
   const loadOrCreateInviteCodeForUser = async (ownerId: string) => {
     try {
       const { data: rows, error: selErr } = await supabase
@@ -217,19 +217,19 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
       const deepLink = `/party/${partyId}?tab=guests`;
 
       const statusTxt =
-        status === ‘confirmed’ ? ‘a confirmé sa présence’
-        : status === ‘declined’ ? "a décliné l’invitation"
-        : ‘est repassé·e en attente’;
+        status === 'confirmed' ? 'a confirmé sa présence'
+        : status === 'declined' ? "a décliné l'invitation"
+        : 'est repassé·e en attente';
 
       if (actedByGuest) {
         await sendRemoteNotification(
           creatorId,
-          "🧾 Réponse à l’invitation",
+          "🧾 Réponse à l'invitation",
           `${guestName} ${statusTxt}.`,
-          { partyId, action: ‘guest_status_update’, guestId, newStatus: status },
+          { partyId, action: 'guest_status_update', guestId, newStatus: status },
           deepLink
         );
-        if (status === ‘confirmed’ && partyDateFixed && partyDate) {
+        if (status === 'confirmed' && partyDateFixed && partyDate) {
           setShowCalendarPrompt(true);
         }
       } else if (actedByCreator) {
@@ -338,7 +338,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
         <div className="bg-neutral-800 rounded-lg p-4">
           <h4 className="text-white font-medium mb-2">Share this party</h4>
           <p className="text-sm text-neutral-400 mb-3">
-            Envoie ce lien : il contient ton code d’invitation et ajoutera automatiquement la personne à cette party après souscription.
+            Envoie ce lien : il contient ton code d'invitation et ajoutera automatiquement la personne à cette party après souscription.
           </p>
           <div className="flex gap-2">
             <input
