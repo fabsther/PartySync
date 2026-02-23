@@ -601,61 +601,61 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
         </div>
 
         <div className="border-b border-neutral-800">
-          <div className="flex overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('guests')}
-              className={`flex items-center space-x-2 px-6 py-4 font-medium transition whitespace-nowrap ${
-                activeTab === 'guests'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Users className="w-5 h-5" />
-              <span>Guests</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('carshare')}
-              className={`flex items-center space-x-2 px-6 py-4 font-medium transition whitespace-nowrap ${
-                activeTab === 'carshare'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Car className="w-5 h-5" />
-              <span>Car Sharing</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('equipment')}
-              className={`flex items-center space-x-2 px-6 py-4 font-medium transition whitespace-nowrap ${
-                activeTab === 'equipment'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Wrench className="w-5 h-5" />
-              <span>Equipment</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('food')}
-              className={`flex items-center space-x-2 px-6 py-4 font-medium transition whitespace-nowrap ${
-                activeTab === 'food'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <UtensilsCrossed className="w-5 h-5" />
-              <span>Food & Drinks</span>
-            </button>
+          <div className="flex flex-wrap">
             <button
               onClick={() => setActiveTab('posts')}
-              className={`flex items-center space-x-2 px-6 py-4 font-medium transition whitespace-nowrap ${
+              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
                 activeTab === 'posts'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-4 h-4" />
               <span>Posts</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('guests')}
+              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+                activeTab === 'guests'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Guests</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('carshare')}
+              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+                activeTab === 'carshare'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Car className="w-4 h-4" />
+              <span>Car Sharing</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('equipment')}
+              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+                activeTab === 'equipment'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Wrench className="w-4 h-4" />
+              <span>Equipment</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('food')}
+              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+                activeTab === 'food'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <UtensilsCrossed className="w-4 h-4" />
+              <span>Food & Drinks</span>
             </button>
           </div>
         </div>
