@@ -412,31 +412,31 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
               </div>
             </div>
 
-            {!party.cancelled_at && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={sharePartyInvite}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg transition text-sm font-medium"
-                  title="Partager l'invitation"
-                >
-                  {copiedPartyLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                  <span>{copiedPartyLink ? 'Copié !' : 'Partager'}</span>
-                </button>
-                {isCreator && (
-                  <button
-                    onClick={openCancelModal}
-                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
-                    title="Annuler la soirée"
-                  >
-                    <Ban className="w-5 h-5" />
-                  </button>
-                )}
-              </div>
+            {isCreator && !party.cancelled_at && (
+              <button
+                onClick={openCancelModal}
+                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition flex-shrink-0"
+                title="Annuler la soirée"
+              >
+                <Ban className="w-5 h-5" />
+              </button>
             )}
           </div>
 
           {party.description && (
             <p className="text-neutral-300 mb-6">{party.description}</p>
+          )}
+
+          {!party.cancelled_at && (
+            <div className="mb-4">
+              <button
+                onClick={sharePartyInvite}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl transition text-sm font-medium"
+              >
+                {copiedPartyLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                <span>{copiedPartyLink ? 'Lien copié !' : "Partager l'invitation"}</span>
+              </button>
+            </div>
           )}
 
           {/* Chat group link */}

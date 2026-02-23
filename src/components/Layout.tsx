@@ -26,7 +26,7 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
-      <nav className="bg-neutral-900 border-b border-neutral-800 safe-top">
+      <nav className="sticky top-0 z-40 bg-neutral-900 border-b border-neutral-800 safe-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
