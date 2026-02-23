@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import {
   ArrowLeft,
   Calendar,
+  CalendarPlus,
   MapPin,
   Clock,
   Users,
@@ -19,6 +20,7 @@ import {
   Smile,
   X as XIcon,
 } from 'lucide-react';
+import { downloadICS, getGoogleCalendarUrl } from '../lib/calendar';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { sendRemoteNotification } from '../lib/remoteNotify';
@@ -65,6 +67,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
   const [editingChat, setEditingChat] = useState(false);
   const [chatDraft, setChatDraft] = useState('');
   const [savingChat, setSavingChat] = useState(false);
+  const [showCalendarMenu, setShowCalendarMenu] = useState(false);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -257,6 +260,16 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
     setParty((prev) => prev ? { ...prev, chat_url: url } : null);
     setSavingChat(false);
     setEditingChat(false);
+  };
+
+  const getCalendarEvent = () => {
+    if (!party?.fixed_date) return null;
+    return {
+      title: party.title,
+      description: party.description || undefined,
+      location: party.address || undefined,
+      startDate: new Date(party.fixed_date),
+    };
   };
 
   const isCreator = user?.id === party?.created_by;
@@ -502,6 +515,40 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
                     {party.is_date_fixed ? 'Date & Time' : 'Vote for Date'}
                   </div>
                   <div className="text-white">{formatDate(party.fixed_date)}</div>
+
+                  {party.is_date_fixed && party.fixed_date && !party.cancelled_at && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => setShowCalendarMenu((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition"
+                      >
+                        <CalendarPlus className="w-3.5 h-3.5" />
+                        <span>Ajouter à l'agenda</span>
+                      </button>
+
+                      {showCalendarMenu && (
+                        <div className="mt-2 flex flex-col gap-1.5">
+                          <a
+                            href={getGoogleCalendarUrl(getCalendarEvent()!)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setShowCalendarMenu(false)}
+                            className="flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm text-white transition"
+                          >
+                            <span className="text-base">📅</span>
+                            Google Calendar
+                          </a>
+                          <button
+                            onClick={() => { downloadICS(getCalendarEvent()!); setShowCalendarMenu(false); }}
+                            className="flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm text-white transition text-left"
+                          >
+                            <span className="text-base">🍎</span>
+                            Apple Calendar / iCal (.ics)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -601,7 +648,17 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
         </div>
 
         <div className="p-6">
-          {activeTab === 'guests' && <GuestList partyId={partyId} creatorId={party.created_by} />}
+          {activeTab === 'guests' && (
+            <GuestList
+              partyId={partyId}
+              creatorId={party.created_by}
+              partyTitle={party.title}
+              partyDate={party.fixed_date}
+              partyAddress={party.address || undefined}
+              partyDescription={party.description || undefined}
+              partyDateFixed={party.is_date_fixed}
+            />
+          )}
           {activeTab === 'carshare' && <CarSharing partyId={partyId} />}
           {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}

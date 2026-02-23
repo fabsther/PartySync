@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
+import { downloadICS, getGoogleCalendarUrl } from '../../lib/calendar';
 
 interface Companion {
   id: string;
@@ -26,9 +27,14 @@ interface Guest {
 interface GuestListProps {
   partyId: string;
   creatorId: string;
+  partyTitle?: string;
+  partyDate?: string | null;
+  partyAddress?: string;
+  partyDescription?: string;
+  partyDateFixed?: boolean;
 }
 
-export function GuestList({ partyId, creatorId }: GuestListProps) {
+export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddress, partyDescription, partyDateFixed }: GuestListProps) {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +46,7 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
   // NEW: pour le lien de partage
   const [inviteCode, setInviteCode] = useState<string>('');
   const [copying, setCopying] = useState(false);
+  const [showCalendarPrompt, setShowCalendarPrompt] = useState(false);
 
   const { user } = useAuth();
   const isCreator = user?.id === creatorId;
@@ -217,11 +224,14 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
       if (actedByGuest) {
         await sendRemoteNotification(
           creatorId,
-          '🧾 Réponse à l’invitation',
+          ‘🧾 Réponse à l’invitation’,
           `${guestName} ${statusTxt}.`,
-          { partyId, action: 'guest_status_update', guestId, newStatus: status },
+          { partyId, action: ‘guest_status_update’, guestId, newStatus: status },
           deepLink
         );
+        if (status === ‘confirmed’ && partyDateFixed && partyDate) {
+          setShowCalendarPrompt(true);
+        }
       } else if (actedByCreator) {
         const body =
           status === 'confirmed' ? 'Votre présence a été confirmée.'
@@ -437,6 +447,60 @@ export function GuestList({ partyId, creatorId }: GuestListProps) {
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCalendarPrompt && partyDate && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-3">🎉</div>
+              <h3 className="text-xl font-bold text-white">Tu es confirmé(e) !</h3>
+              <p className="text-neutral-400 text-sm mt-1">
+                Ajouter{partyTitle ? ` « ${partyTitle} »` : ' la soirée'} à ton agenda ?
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <a
+                href={getGoogleCalendarUrl({
+                  title: partyTitle || 'Soirée',
+                  description: partyDescription,
+                  location: partyAddress,
+                  startDate: new Date(partyDate),
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setShowCalendarPrompt(false)}
+                className="flex items-center gap-3 w-full px-4 py-3 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-xl transition text-white text-sm font-medium"
+              >
+                <span className="text-xl">📅</span>
+                <span>Google Calendar</span>
+              </a>
+              <button
+                onClick={() => {
+                  downloadICS({
+                    title: partyTitle || 'Soirée',
+                    description: partyDescription,
+                    location: partyAddress,
+                    startDate: new Date(partyDate),
+                  });
+                  setShowCalendarPrompt(false);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-xl transition text-white text-sm font-medium text-left"
+              >
+                <span className="text-xl">🍎</span>
+                <span>Apple Calendar / iCal (.ics)</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowCalendarPrompt(false)}
+              className="w-full text-neutral-500 hover:text-neutral-300 text-sm transition py-1"
+            >
+              Non merci
             </button>
           </div>
         </div>
