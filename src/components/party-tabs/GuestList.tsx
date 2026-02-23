@@ -217,14 +217,14 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
       const deepLink = `/party/${partyId}?tab=guests`;
 
       const statusTxt =
-        status === 'confirmed' ? 'a confirmé sa présence'
-        : status === 'declined' ? 'a décliné l’invitation'
-        : 'est repassé·e en attente';
+        status === ‘confirmed’ ? ‘a confirmé sa présence’
+        : status === ‘declined’ ? "a décliné l’invitation"
+        : ‘est repassé·e en attente’;
 
       if (actedByGuest) {
         await sendRemoteNotification(
           creatorId,
-          ‘🧾 Réponse à l’invitation’,
+          "🧾 Réponse à l’invitation",
           `${guestName} ${statusTxt}.`,
           { partyId, action: ‘guest_status_update’, guestId, newStatus: status },
           deepLink
