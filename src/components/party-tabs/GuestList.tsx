@@ -43,9 +43,6 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   const [newCompanionName, setNewCompanionName] = useState('');
   const [addingCompanion, setAddingCompanion] = useState(false);
 
-  // NEW: pour le lien de partage
-  const [inviteCode, setInviteCode] = useState<string>('');
-  const [copying, setCopying] = useState(false);
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false);
 
   const { user } = useAuth();
@@ -55,7 +52,6 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     loadGuests();
     if (isCreator) {
       loadSubscribers();
-      loadOrCreateInviteCodeForUser(creatorId); // NEW
     }
   }, [partyId, isCreator]);
 
@@ -89,59 +85,6 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     }
   };
 
-  // NEW: lecture (ou création si absent) du code d'invitation de l'organisateur
-  const loadOrCreateInviteCodeForUser = async (ownerId: string) => {
-    try {
-      const { data: rows, error: selErr } = await supabase
-        .from('invite_codes')
-        .select('code, created_at')
-        .eq('created_by', ownerId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (selErr) throw selErr;
-
-      if (rows && rows.length > 0) {
-        setInviteCode(rows[0].code);
-        return;
-      }
-
-      const newCode = generateInviteCode();
-      const { error: insErr } = await supabase
-        .from('invite_codes')
-        .upsert(
-          { code: newCode, created_by: ownerId },
-          { onConflict: 'created_by', ignoreDuplicates: true }
-        );
-      if (insErr) throw insErr;
-
-      const { data: finalRow, error: finalErr } = await supabase
-        .from('invite_codes')
-        .select('code')
-        .eq('created_by', ownerId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (finalErr) throw finalErr;
-      setInviteCode(finalRow.code);
-    } catch (e) {
-      console.error('Error loading/creating invite code:', e);
-    }
-  };
-
-  const generateInviteCode = () => Math.random().toString(36).substring(2, 10).toUpperCase();
-
-  const shareUrl = inviteCode
-    ? `${window.location.origin}?invite=${inviteCode}&join_party=${partyId}` // NEW
-    : '';
-
-  const copyShareLink = async () => {
-    if (!shareUrl) return;
-    await navigator.clipboard.writeText(shareUrl);
-    setCopying(true);
-    setTimeout(() => setCopying(false), 1500);
-  };
 
   const addGuestFromList = async (targetUserId: string) => {
     setAddingGuest(true);
@@ -333,32 +276,6 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
 
   return (
     <div className="space-y-6">
-      {/* NEW: Bloc partage (organisateur) */}
-      {isCreator && (
-        <div className="bg-neutral-800 rounded-lg p-4">
-          <h4 className="text-white font-medium mb-2">Share this party</h4>
-          <p className="text-sm text-neutral-400 mb-3">
-            Envoie ce lien : il contient ton code d'invitation et ajoutera automatiquement la personne à cette party après souscription.
-          </p>
-          <div className="flex gap-2">
-            <input
-              readOnly
-              value={shareUrl}
-              className="flex-1 px-3 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-sm"
-            />
-            <button
-              onClick={copyShareLink}
-              disabled={!shareUrl}
-              className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
-            >
-              {copying ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-          <p className="text-xs text-neutral-500 mt-2">
-            Format: <code>?invite=&lt;CODE&gt;&amp;join_party={partyId}</code>
-          </p>
-        </div>
-      )}
 
       {isCreator && (
         <div>
