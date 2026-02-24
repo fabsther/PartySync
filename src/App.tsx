@@ -13,8 +13,13 @@ import { InstallPrompt } from './components/InstallPrompt';
 import { isIOS } from './lib/platform';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
 
 function AppContent() {
+  if (window.location.pathname === '/privacy') {
+    return <PrivacyPolicy />;
+  }
+
   const { user, loading, isRecovering } = useAuth();
   const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile'>('parties');
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);

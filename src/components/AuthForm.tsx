@@ -229,6 +229,13 @@ export function AuthForm() {
             )}
           </div>
         </form>
+
+        <p className="text-center text-neutral-600 text-xs pt-2">
+          En continuant, tu acceptes notre{' '}
+          <a href="/privacy" className="text-neutral-400 hover:text-neutral-300 underline transition">
+            Politique de confidentialité
+          </a>
+        </p>
       </div>
     </div>
   );
