@@ -19,7 +19,17 @@ export default defineConfig({
         background_color: '#0a0a0a',
         display: 'standalone',
         orientation: 'portrait-primary',
+        id: '/',
+        scope: '/',
         start_url: '/',
+        // When a Chrome Custom Tab (e.g. Google OAuth callback) navigates to a URL
+        // within the PWA's scope, route it into the existing PWA window instead of
+        // opening Chrome browser. This fixes the OAuth redirect landing in Chrome
+        // with a URL bar instead of in the installed PWA.
+        launch_handler: {
+          client_mode: 'existing-client-navigate',
+        },
+        prefer_related_applications: false,
         icons: [
           {
             src: 'icon-192.png',

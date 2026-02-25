@@ -15,11 +15,26 @@ import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 
+// Returns true when the OAuth callback URL landed in Chrome browser instead of the
+// installed PWA standalone window. On Android, Chrome Custom Tabs (used for Google
+// OAuth) don't always hand the redirect back to the PWA — the user ends up in the
+// browser with a URL bar instead of the app.
+function checkOAuthBrowserModeWarning() {
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    !!(window.navigator as any).standalone;
+  const params = new URLSearchParams(window.location.search);
+  const hasOAuthCode = params.has('code');
+  const hasAccessToken = window.location.hash.includes('access_token=');
+  return !isStandalone && (hasOAuthCode || hasAccessToken);
+}
+
 function AppContent() {
   if (window.location.pathname === '/privacy') {
     return <PrivacyPolicy />;
   }
 
+  const showBrowserModeWarning = checkOAuthBrowserModeWarning();
   const { user, loading, isRecovering } = useAuth();
   const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile'>('parties');
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
@@ -203,7 +218,26 @@ function AppContent() {
   }
 
   if (!user) {
-    return <AuthForm />;
+    return (
+      <>
+        {showBrowserModeWarning && (
+          <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-center p-6 text-center">
+            <div className="text-5xl mb-4">📱</div>
+            <h2 className="text-xl font-bold text-white mb-3">Open PartySync from your home screen</h2>
+            <p className="text-neutral-400 text-sm leading-relaxed max-w-xs">
+              Google sign-in redirected here in Chrome instead of the app.
+              Please tap the <strong className="text-white">PartySync icon</strong> on your home screen,
+              then tap <strong className="text-white">Continue with Google</strong> again.
+            </p>
+            <p className="text-neutral-600 text-xs mt-6">
+              (This happens because Android opened the login callback in the browser.
+              The fix has been applied — it should work correctly next time.)
+            </p>
+          </div>
+        )}
+        {!showBrowserModeWarning && <AuthForm />}
+      </>
+    );
   }
 
   const handleTabChange = (tab: 'parties' | 'subscribers' | 'profile') => {
