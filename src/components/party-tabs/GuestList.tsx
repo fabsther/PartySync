@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserPlus, Check, X, Clock } from 'lucide-react';
+import { UserPlus, Check, X, Clock, Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
@@ -42,6 +42,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   const [showSubscriberList, setShowSubscriberList] = useState(false);
   const [newCompanionName, setNewCompanionName] = useState('');
   const [addingCompanion, setAddingCompanion] = useState(false);
+  const [pingedGuests, setPingedGuests] = useState<Set<string>>(new Set());
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false);
 
@@ -256,6 +257,17 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     }
   };
 
+  const pingGuest = async (guest: Guest) => {
+    await sendRemoteNotification(
+      guest.user_id,
+      `🔔 Ta réponse est attendue — ${partyTitle}`,
+      `L'organisateur te demande si tu viens à « ${partyTitle} »`,
+      { partyId, action: 'ping_rsvp', guestId: guest.id },
+      `/?partyId=${partyId}&action=ping_rsvp`
+    );
+    setPingedGuests(prev => new Set(prev).add(guest.id));
+  };
+
   const emailToDisplayName = (email: string): string => {
     const local = email.split('@')[0];
     const cleaned = local.replace(/\d+/g, '').replace(/[._-]+/g, ' ').trim();
@@ -438,26 +450,39 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
               key={guest.id}
               className="bg-neutral-800 rounded-lg p-4 space-y-2"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                {guest.profiles.avatar_url ? (
-                  <img src={guest.profiles.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                ) : (
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                    {(guest.profiles.full_name || emailToDisplayName(guest.profiles.email))[0].toUpperCase()}
-                  </div>
-                )}
-                {getStatusIcon(guest.status)}
-                <div className="min-w-0">
-                  <div className="text-white font-medium truncate">
-                    {guest.profiles.full_name || emailToDisplayName(guest.profiles.email)}
-                  </div>
-                  <div className="text-sm text-neutral-500">{getStatusText(guest.status)}</div>
-                  {guest.guest_companions && guest.guest_companions.length > 0 && (
-                    <div className="text-xs text-orange-400 mt-1">
-                      +{guest.guest_companions.length} companion{guest.guest_companions.length > 1 ? 's' : ''}: {guest.guest_companions.map(c => c.name).join(', ')}
+              <div className="flex items-center gap-3 min-w-0 justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  {guest.profiles.avatar_url ? (
+                    <img src={guest.profiles.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                      {(guest.profiles.full_name || emailToDisplayName(guest.profiles.email))[0].toUpperCase()}
                     </div>
                   )}
+                  {getStatusIcon(guest.status)}
+                  <div className="min-w-0">
+                    <div className="text-white font-medium truncate">
+                      {guest.profiles.full_name || emailToDisplayName(guest.profiles.email)}
+                    </div>
+                    <div className="text-sm text-neutral-500">{getStatusText(guest.status)}</div>
+                    {guest.guest_companions && guest.guest_companions.length > 0 && (
+                      <div className="text-xs text-orange-400 mt-1">
+                        +{guest.guest_companions.length} companion{guest.guest_companions.length > 1 ? 's' : ''}: {guest.guest_companions.map(c => c.name).join(', ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {isCreator && guest.status === 'invited' && guest.user_id !== user?.id && (
+                  <button
+                    onClick={() => pingGuest(guest)}
+                    title="Relancer cet invité"
+                    className="flex-shrink-0 p-1.5 rounded-lg hover:bg-neutral-700 transition"
+                  >
+                    {pingedGuests.has(guest.id)
+                      ? <Check className="w-4 h-4 text-green-400" />
+                      : <Bell className="w-4 h-4 text-orange-400" />}
+                  </button>
+                )}
               </div>
 
               {(guest.user_id === user?.id || isCreator) && !(isCreator && guest.user_id === user?.id) && (

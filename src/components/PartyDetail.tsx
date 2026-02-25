@@ -53,14 +53,15 @@ interface PartyDetailProps {
   partyId: string;
   onBack: () => void;
   onDelete: () => void;
+  initialPostId?: string;
 }
 
 type Tab = 'guests' | 'carshare' | 'equipment' | 'food' | 'posts';
 
-export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
+export function PartyDetail({ partyId, onBack, onDelete, initialPostId }: PartyDetailProps) {
   const [party, setParty] = useState<Party | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>('guests');
+  const [activeTab, setActiveTab] = useState<Tab>(initialPostId ? 'posts' : 'guests');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [confirmedGuests, setConfirmedGuests] = useState<{ user_id: string }[] | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -676,7 +677,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
           {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'posts' && (
-            <Posts partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />
+            <Posts partyId={partyId} creatorId={party.created_by} partyTitle={party.title} highlightPostId={initialPostId} />
           )}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Trash2, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,17 +16,28 @@ interface Post {
   };
 }
 
+interface MentionableUser {
+  id: string;
+  displayName: string;
+  avatar_url: string | null;
+}
+
 interface PostsProps {
   partyId: string;
   creatorId: string;
   partyTitle?: string;
+  highlightPostId?: string;
 }
 
-export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
+export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: PostsProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionableUsers, setMentionableUsers] = useState<MentionableUser[]>([]);
+  const [mentionedUsers, setMentionedUsers] = useState<Map<string, string>>(new Map());
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
   const isCreator = user?.id === creatorId;
 
@@ -45,6 +56,56 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
     return () => { supabase.removeChannel(channel); };
   }, [partyId]);
 
+  // Load mentionable users: confirmed guests + creator
+  useEffect(() => {
+    const loadMentionableUsers = async () => {
+      const [{ data: guests }, { data: creatorProfile }] = await Promise.all([
+        supabase
+          .from('party_guests')
+          .select('user_id, profiles(full_name, email, avatar_url)')
+          .eq('party_id', partyId)
+          .eq('status', 'confirmed'),
+        supabase
+          .from('profiles')
+          .select('id, full_name, email, avatar_url')
+          .eq('id', creatorId)
+          .single(),
+      ]);
+
+      const users: MentionableUser[] = [];
+      const seen = new Set<string>();
+
+      if (creatorProfile) {
+        const p = creatorProfile as any;
+        const name = p.full_name || p.email || 'Organisateur';
+        users.push({ id: p.id, displayName: name, avatar_url: p.avatar_url });
+        seen.add(p.id);
+      }
+
+      (guests || []).forEach((g: any) => {
+        if (seen.has(g.user_id)) return;
+        const p = g.profiles as any;
+        const name = p?.full_name || p?.email || 'Invité';
+        users.push({ id: g.user_id, displayName: name, avatar_url: p?.avatar_url || null });
+        seen.add(g.user_id);
+      });
+
+      setMentionableUsers(users);
+    };
+
+    loadMentionableUsers();
+  }, [partyId, creatorId]);
+
+  // Scroll to and highlight post on deep link
+  useEffect(() => {
+    if (!highlightPostId || posts.length === 0) return;
+    const el = document.getElementById(`post-${highlightPostId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-orange-400');
+    setTimeout(() => el.classList.remove('ring-2', 'ring-orange-400'), 3000);
+  }, [highlightPostId, posts]);
+
   const loadPosts = async () => {
     const { data, error } = await supabase
       .from('party_posts')
@@ -56,19 +117,64 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
     setLoading(false);
   };
 
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setNewPost(value);
+
+    const cursor = e.target.selectionStart;
+    const beforeCursor = value.slice(0, cursor);
+    const lastAt = beforeCursor.lastIndexOf('@');
+    if (lastAt !== -1) {
+      const query = beforeCursor.slice(lastAt + 1);
+      if (!query.includes(' ') && !query.includes('\n')) {
+        setMentionQuery(query.toLowerCase());
+        return;
+      }
+    }
+    setMentionQuery(null);
+  };
+
+  const insertMention = (u: MentionableUser) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const cursor = textarea.selectionStart;
+    const beforeCursor = newPost.slice(0, cursor);
+    const lastAt = beforeCursor.lastIndexOf('@');
+    const after = newPost.slice(cursor);
+    const mentionText = `@[${u.displayName}] `;
+    const newContent = newPost.slice(0, lastAt) + mentionText + after;
+    setNewPost(newContent);
+    setMentionedUsers(prev => new Map(prev).set(u.id, u.displayName));
+    setMentionQuery(null);
+    textarea.focus();
+  };
+
   const submitPost = async () => {
     if (!newPost.trim() || !user) return;
     setSubmitting(true);
     try {
       const content = newPost.trim();
+      const mentionedIds = [...mentionedUsers.keys()];
 
-      await supabase.from('party_posts').insert({
-        party_id: partyId,
-        user_id: user.id,
-        content,
-      });
+      const { data: insertedPost } = await supabase
+        .from('party_posts')
+        .insert({
+          party_id: partyId,
+          user_id: user.id,
+          content,
+          mentions: mentionedIds,
+        })
+        .select('id')
+        .single();
 
       setNewPost('');
+      setMentionedUsers(new Map());
+      setMentionQuery(null);
+
+      const posterName =
+        (user as any).user_metadata?.full_name ||
+        user.email?.split('@')[0] ||
+        'Quelqu\'un';
 
       // Notify all confirmed guests (except the poster)
       const { data: confirmedGuests } = await supabase
@@ -78,15 +184,9 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
         .eq('status', 'confirmed')
         .neq('user_id', user.id);
 
-      // Also notify creator if they didn't post
       const recipientIds = new Set<string>();
       (confirmedGuests || []).forEach((g) => recipientIds.add(g.user_id));
       if (creatorId !== user.id) recipientIds.add(creatorId);
-
-      const posterName =
-        (user as any).user_metadata?.full_name ||
-        user.email?.split('@')[0] ||
-        'Quelqu\'un';
 
       const notifTitle = partyTitle
         ? `Nouveau post — ${partyTitle}`
@@ -103,6 +203,23 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
           )
         )
       );
+
+      // Notify mentioned users not already notified via the general post notification
+      if (insertedPost) {
+        await Promise.allSettled(
+          mentionedIds
+            .filter(id => id !== user.id && !recipientIds.has(id))
+            .map(uid =>
+              sendRemoteNotification(
+                uid,
+                `📌 ${posterName} t'a mentionné`,
+                `${posterName} : ${content.slice(0, 80)}`,
+                { partyId, action: 'post_mention', postId: insertedPost.id },
+                `/?partyId=${partyId}&postId=${insertedPost.id}`
+              )
+            )
+        );
+      }
     } catch (e) {
       console.error('Error posting:', e);
     } finally {
@@ -128,26 +245,63 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
+  const renderContent = (text: string) => {
+    const parts = text.split(/(@\[[^\]]+\])/g);
+    return parts.map((part, i) =>
+      part.match(/^@\[/)
+        ? <span key={i} className="text-orange-400 font-medium">{part}</span>
+        : <span key={i}>{part}</span>
+    );
+  };
+
+  const filteredMentions = mentionQuery !== null
+    ? mentionableUsers.filter(u => u.displayName.toLowerCase().includes(mentionQuery!))
+    : [];
+
   if (loading) return <div className="text-center text-neutral-400 py-8">Chargement...</div>;
 
   return (
     <div className="space-y-4">
       {/* Composer */}
       <div className="bg-neutral-800 rounded-xl p-4">
-        <textarea
-          value={newPost}
-          onChange={(e) => setNewPost(e.target.value)}
-          placeholder="Ecris quelque chose..."
-          rows={3}
-          maxLength={1000}
-          className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 resize-none text-sm"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              submitPost();
-            }
-          }}
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={newPost}
+            onChange={handleContentChange}
+            placeholder="Ecris quelque chose... (@mention pour notifier quelqu'un)"
+            rows={3}
+            maxLength={1000}
+            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 resize-none text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { setMentionQuery(null); return; }
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submitPost();
+              }
+            }}
+          />
+          {mentionQuery !== null && filteredMentions.length > 0 && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 bg-neutral-800 border border-neutral-700 rounded-xl overflow-hidden z-20 shadow-xl max-h-48 overflow-y-auto">
+              {filteredMentions.map(u => (
+                <button
+                  key={u.id}
+                  onMouseDown={(e) => { e.preventDefault(); insertMention(u); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-700 transition text-left"
+                >
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                      {u.displayName[0].toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-white text-sm">{u.displayName}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex justify-between items-center mt-2">
           <span className="text-xs text-neutral-600">{newPost.length}/1000</span>
           <button
@@ -173,7 +327,11 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
             const canDelete = user?.id === post.user_id || isCreator;
             const name = post.profiles.full_name || post.profiles.email;
             return (
-              <div key={post.id} className="bg-neutral-800 rounded-xl p-4">
+              <div
+                key={post.id}
+                id={`post-${post.id}`}
+                className="bg-neutral-800 rounded-xl p-4 transition-all duration-300"
+              >
                 <div className="flex items-start gap-3">
                   {post.profiles.avatar_url ? (
                     <img
@@ -204,7 +362,7 @@ export function Posts({ partyId, creatorId, partyTitle }: PostsProps) {
                       )}
                     </div>
                     <p className="text-neutral-200 text-sm mt-1 whitespace-pre-wrap break-words">
-                      {post.content}
+                      {renderContent(post.content)}
                     </p>
                   </div>
                 </div>

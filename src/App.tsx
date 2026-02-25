@@ -9,11 +9,106 @@ import { SubscribersList } from './components/SubscribersList';
 import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
 import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
+import { sendRemoteNotification } from './lib/remoteNotify';
 import { InstallPrompt } from './components/InstallPrompt';
 import { isIOS } from './lib/platform';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
+
+interface PingContext {
+  partyId: string;
+  partyTitle: string;
+  creatorId: string;
+}
+
+function PingRsvpModal({
+  context,
+  onClose,
+  onNavigate,
+}: {
+  context: PingContext;
+  onClose: () => void;
+  onNavigate: (partyId: string) => void;
+}) {
+  const { user } = useAuth();
+  const [responding, setResponding] = useState(false);
+
+  const respond = async (status: 'confirmed' | 'declined') => {
+    if (!user) return;
+    setResponding(true);
+    try {
+      await supabase
+        .from('party_guests')
+        .update({ status })
+        .eq('party_id', context.partyId)
+        .eq('user_id', user.id);
+
+      const userName =
+        (user as any).user_metadata?.full_name ||
+        user.email?.split('@')[0] ||
+        'Un invité';
+
+      const notifBody =
+        status === 'confirmed'
+          ? `${userName} a confirmé sa présence à « ${context.partyTitle} ».`
+          : `${userName} a décliné l'invitation à « ${context.partyTitle} ».`;
+
+      await sendRemoteNotification(
+        context.creatorId,
+        status === 'confirmed' ? '🎉 Présence confirmée' : '❌ Invitation déclinée',
+        notifBody,
+        { partyId: context.partyId, action: 'ping_rsvp_response', status },
+        `/?partyId=${context.partyId}`
+      );
+
+      onNavigate(context.partyId);
+      onClose();
+    } catch (e) {
+      console.error('Error responding to ping:', e);
+    } finally {
+      setResponding(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-3">🎉</div>
+          <h3 className="text-xl font-bold text-white mb-1">Es-tu dispo ?</h3>
+          <p className="text-neutral-400 text-sm">
+            L'organisateur demande si tu viens à{' '}
+            <span className="text-white font-medium">« {context.partyTitle} »</span>
+          </p>
+        </div>
+        <div className="space-y-3">
+          <button
+            onClick={() => respond('confirmed')}
+            disabled={responding}
+            className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition disabled:opacity-50"
+          >
+            Oui, j'y serai ✓
+          </button>
+          <button
+            onClick={() => respond('declined')}
+            disabled={responding}
+            className="w-full py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl font-medium transition disabled:opacity-50"
+          >
+            Non, je ne viendrai pas ✗
+          </button>
+          <button
+            onClick={onClose}
+            disabled={responding}
+            className="w-full py-2 text-neutral-500 hover:text-neutral-300 text-sm transition"
+          >
+            Décider plus tard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Returns true when the OAuth callback URL landed in Chrome browser instead of the
 // installed PWA standalone window. On Android, Chrome Custom Tabs (used for Google
@@ -41,6 +136,8 @@ function AppContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [welcomeParty, setWelcomeParty] = useState<WelcomePartyInfo | null>(null);
+  const [pingContext, setPingContext] = useState<PingContext | null>(null);
+  const [initialPostId, setInitialPostId] = useState<string | null>(null);
 
   // Sauvegarder les params d'invitation en sessionStorage dès le chargement de la page,
   // pour qu'ils survivent au flux login/signup (au cas où le navigateur modifie l'URL)
@@ -81,6 +178,39 @@ function AppContent() {
         url.searchParams.delete('join_party');
         window.history.replaceState({}, '', url.toString());
       });
+  }, [user]);
+
+  // Détecter les deep links : ping_rsvp et post_mention
+  useEffect(() => {
+    if (!user) return;
+
+    const url = new URL(window.location.href);
+    const action = url.searchParams.get('action');
+    const partyId = url.searchParams.get('partyId');
+    const postId = url.searchParams.get('postId');
+
+    if (action === 'ping_rsvp' && partyId) {
+      supabase
+        .from('parties')
+        .select('title, created_by')
+        .eq('id', partyId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setPingContext({ partyId, partyTitle: data.title, creatorId: data.created_by });
+          }
+        });
+      url.searchParams.delete('action');
+      url.searchParams.delete('partyId');
+      window.history.replaceState({}, '', url.toString());
+    } else if (postId && partyId) {
+      setSelectedPartyId(partyId);
+      setInitialPostId(postId);
+      setActiveTab('parties');
+      url.searchParams.delete('postId');
+      url.searchParams.delete('partyId');
+      window.history.replaceState({}, '', url.toString());
+    }
   }, [user]);
 
   // Notifications : enregistrement au login + ré-enregistrement si le SW signale un changement
@@ -257,11 +387,13 @@ function AppContent() {
         {selectedPartyId ? (
           <PartyDetail
             partyId={selectedPartyId}
-            onBack={() => setSelectedPartyId(null)}
+            onBack={() => { setSelectedPartyId(null); setInitialPostId(null); }}
             onDelete={() => {
               setSelectedPartyId(null);
+              setInitialPostId(null);
               setRefreshKey((prev) => prev + 1);
             }}
+            initialPostId={initialPostId ?? undefined}
           />
         ) : activeTab === 'parties' ? (
           <PartyList key={refreshKey} onSelectParty={setSelectedPartyId} />
@@ -288,6 +420,17 @@ function AppContent() {
         <WelcomePartyModal
           party={welcomeParty}
           onClose={() => setWelcomeParty(null)}
+        />
+      )}
+
+      {pingContext && user && (
+        <PingRsvpModal
+          context={pingContext}
+          onClose={() => setPingContext(null)}
+          onNavigate={(partyId) => {
+            setSelectedPartyId(partyId);
+            setActiveTab('parties');
+          }}
         />
       )}
     </>
