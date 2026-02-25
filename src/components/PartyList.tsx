@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, MapPin, Clock } from 'lucide-react';
+import { Calendar, MapPin, Clock, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,9 +19,10 @@ interface Party {
 
 interface PartyListProps {
   onSelectParty: (partyId: string) => void;
+  onCreateParty: () => void;
 }
 
-export function PartyList({ onSelectParty }: PartyListProps) {
+export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -60,14 +61,6 @@ export function PartyList({ onSelectParty }: PartyListProps) {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-      </div>
-    );
-  }
-
   // Parties annulées : masquer une fois que la date est passée
   const now = new Date();
   const visibleParties = parties.filter((p) => {
@@ -76,17 +69,30 @@ export function PartyList({ onSelectParty }: PartyListProps) {
     return new Date(p.fixed_date) > now;
   });
 
-  if (visibleParties.length === 0) {
-    return (
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-white">Parties</h2>
+        <button
+          onClick={onCreateParty}
+          className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition flex items-center space-x-2"
+        >
+          <Plus className="w-5 h-5" />
+          <span>New Party</span>
+        </button>
+      </div>
+
+      {loading ? (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+      ) : visibleParties.length === 0 ? (
       <div className="text-center py-12">
         <Calendar className="w-16 h-16 text-neutral-700 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-neutral-400 mb-2">No parties yet</h3>
         <p className="text-neutral-500">Create your first party to get started</p>
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {visibleParties.map((party) => (
         <button
@@ -159,6 +165,8 @@ export function PartyList({ onSelectParty }: PartyListProps) {
           </div>
         </button>
       ))}
+    </div>
+      )}
     </div>
   );
 }

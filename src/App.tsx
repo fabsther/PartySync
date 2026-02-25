@@ -393,7 +393,6 @@ function AppContent() {
       <Layout
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        onCreateParty={() => setShowCreateModal(true)}
         onNavigate={handleNavigateFromNotif}
       >
         {selectedPartyId ? (
@@ -410,7 +409,7 @@ function AppContent() {
             initialTab={(initialTab as any) ?? undefined}
           />
         ) : activeTab === 'parties' ? (
-          <PartyList key={refreshKey} onSelectParty={setSelectedPartyId} />
+          <PartyList key={refreshKey} onSelectParty={setSelectedPartyId} onCreateParty={() => setShowCreateModal(true)} />
         ) : activeTab === 'subscribers' ? (
           <SubscribersList />
         ) : (

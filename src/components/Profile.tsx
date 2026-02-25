@@ -1,11 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, MapPin, Save, Loader, Camera, X } from 'lucide-react';
+import { User, Mail, MapPin, Save, Loader, Camera, X, LogOut } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAvatarMedia, deletePartyMedia } from '../lib/uploadMedia';
 
 export function Profile() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -293,6 +301,16 @@ export function Profile() {
             <div className="text-neutral-300 font-mono text-xs break-all">{user?.id}</div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/30 rounded-xl transition"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="font-medium">Sign Out</span>
+        </button>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { PartyPopper, Users, CalendarDays, LogOut, Menu, X, Plus, User, Download } from 'lucide-react';
+import { PartyPopper, Users, CalendarDays, Menu, X, User, Download } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
@@ -8,22 +8,13 @@ interface LayoutProps {
   children: ReactNode;
   activeTab: 'parties' | 'subscribers' | 'profile';
   onTabChange: (tab: 'parties' | 'subscribers' | 'profile') => void;
-  onCreateParty: () => void;
   onNavigate?: (partyId: string, tab?: string, postId?: string) => void;
 }
 
-export function Layout({ children, activeTab, onTabChange, onCreateParty, onNavigate }: LayoutProps) {
-  const { signOut, user } = useAuth(); 
+export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutProps) {
+  const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { canInstall, install } = usePWAInstall();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
@@ -75,9 +66,6 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty, onNavi
 
             <div className="flex items-center space-x-2">
               <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
-            </div>
-
-            <div className="hidden md:flex items-center space-x-3">
               {canInstall && (
                 <button
                   onClick={install}
@@ -88,34 +76,8 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty, onNavi
                 </button>
               )}
               <button
-                onClick={onCreateParty}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition flex items-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>New Party</span>
-              </button>
-              <button
-                onClick={handleSignOut}
-                className="text-neutral-400 hover:text-white p-2 rounded-lg hover:bg-neutral-800 transition"
-                title="Sign Out"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="md:hidden flex items-center space-x-2">
-              {canInstall && (
-                <button
-                  onClick={install}
-                  className="text-orange-400 hover:text-orange-300 p-2"
-                  title="Installer l'app"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-              )}
-              <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-neutral-400 hover:text-white p-2"
+                className="md:hidden text-neutral-400 hover:text-white p-2"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
@@ -167,23 +129,6 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty, onNavi
               >
                 <User className="w-5 h-5 inline mr-2" />
                 Profile
-              </button>
-              <button
-                onClick={() => {
-                  onCreateParty();
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition flex items-center justify-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>New Party</span>
-              </button>
-              <button
-                onClick={handleSignOut}
-                className="w-full text-left text-neutral-400 hover:text-white px-4 py-3 rounded-lg hover:bg-neutral-800 transition"
-              >
-                <LogOut className="w-5 h-5 inline mr-2" />
-                Sign Out
               </button>
               {canInstall && (
                 <button
