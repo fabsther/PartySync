@@ -54,14 +54,15 @@ interface PartyDetailProps {
   onBack: () => void;
   onDelete: () => void;
   initialPostId?: string;
+  initialTab?: Tab;
 }
 
 type Tab = 'guests' | 'carshare' | 'equipment' | 'food' | 'posts';
 
-export function PartyDetail({ partyId, onBack, onDelete, initialPostId }: PartyDetailProps) {
+export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialTab }: PartyDetailProps) {
   const [party, setParty] = useState<Party | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>(initialPostId ? 'posts' : 'guests');
+  const [activeTab, setActiveTab] = useState<Tab>(initialPostId ? 'posts' : (initialTab ?? 'guests'));
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [confirmedGuests, setConfirmedGuests] = useState<{ user_id: string }[] | null>(null);
   const [cancelling, setCancelling] = useState(false);

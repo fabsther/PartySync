@@ -4,9 +4,50 @@ import { useUserNotifications } from '../hooks/useUserNotifications';
 
 type Props = {
   userId?: string;
+  onNavigate?: (partyId: string, tab?: string, postId?: string) => void;
 };
 
-export function NotificationsBell({ userId }: Props) {
+function getNavLabel(action?: string): string {
+  switch (action) {
+    case 'post_mention':
+    case 'party_post':
+      return 'Voir le post';
+    case 'equipment_ping':
+    case 'equipment_custom_added':
+    case 'equipment_custom_added_by_guest':
+      return "Voir l'équipement";
+    case 'ping_rsvp_response':
+      return 'Voir la soirée';
+    case 'ride_pickup':
+    case 'ride_kicked':
+    case 'request_cancelled_by_user':
+    case 'offer_cancelled':
+      return 'Voir le covoiturage';
+    default:
+      return 'Ouvrir';
+  }
+}
+
+function getNavTab(action?: string): string | undefined {
+  switch (action) {
+    case 'post_mention':
+    case 'party_post':
+      return 'posts';
+    case 'equipment_ping':
+    case 'equipment_custom_added':
+    case 'equipment_custom_added_by_guest':
+      return 'equipment';
+    case 'ride_pickup':
+    case 'ride_kicked':
+    case 'request_cancelled_by_user':
+    case 'offer_cancelled':
+      return 'carshare';
+    default:
+      return undefined;
+  }
+}
+
+export function NotificationsBell({ userId, onNavigate }: Props) {
   const { items, unreadCount, loading, hasMore, fetchPage, markAsRead, markAllAsRead, deleteNotification, deleteAllNotifications } =
     useUserNotifications(userId);
   const [open, setOpen] = useState(false);
@@ -82,14 +123,29 @@ export function NotificationsBell({ userId }: Props) {
                     <div className="mt-1 text-xs text-neutral-500">
                       {new Date(n.created_at).toLocaleString()}
                     </div>
-                    {!!n.metadata?.url && (
+                    {!!n.metadata?.partyId && onNavigate ? (
+                      <button
+                        onClick={() => {
+                          markAsRead(n.id);
+                          setOpen(false);
+                          onNavigate(
+                            n.metadata.partyId,
+                            getNavTab(n.metadata?.action),
+                            n.metadata?.action === 'post_mention' ? n.metadata?.postId : undefined
+                          );
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-orange-500/20 text-orange-300 hover:bg-orange-500/30 transition"
+                      >
+                        {getNavLabel(n.metadata?.action)}
+                      </button>
+                    ) : !!n.metadata?.url ? (
                       <a
                         href={n.metadata.url}
                         className="mt-2 inline-block text-xs underline text-neutral-300 hover:text-white"
                       >
                         Ouvrir
                       </a>
-                    )}
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {!n.read && (

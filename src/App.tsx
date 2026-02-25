@@ -138,6 +138,7 @@ function AppContent() {
   const [welcomeParty, setWelcomeParty] = useState<WelcomePartyInfo | null>(null);
   const [pingContext, setPingContext] = useState<PingContext | null>(null);
   const [initialPostId, setInitialPostId] = useState<string | null>(null);
+  const [initialTab, setInitialTab] = useState<string | null>(null);
 
   // Sauvegarder les params d'invitation en sessionStorage dès le chargement de la page,
   // pour qu'ils survivent au flux login/signup (au cas où le navigateur modifie l'URL)
@@ -203,12 +204,15 @@ function AppContent() {
       url.searchParams.delete('action');
       url.searchParams.delete('partyId');
       window.history.replaceState({}, '', url.toString());
-    } else if (postId && partyId) {
+    } else if (partyId) {
       setSelectedPartyId(partyId);
-      setInitialPostId(postId);
       setActiveTab('parties');
-      url.searchParams.delete('postId');
+      if (postId) setInitialPostId(postId);
+      const tab = url.searchParams.get('tab');
+      if (tab) setInitialTab(tab);
       url.searchParams.delete('partyId');
+      url.searchParams.delete('postId');
+      url.searchParams.delete('tab');
       window.history.replaceState({}, '', url.toString());
     }
   }, [user]);
@@ -377,23 +381,33 @@ function AppContent() {
     }
   };
 
+  const handleNavigateFromNotif = (partyId: string, tab?: string, postId?: string) => {
+    setActiveTab('parties');
+    setSelectedPartyId(partyId);
+    setInitialTab(tab ?? null);
+    setInitialPostId(postId ?? null);
+  };
+
   return (
     <>
       <Layout
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onCreateParty={() => setShowCreateModal(true)}
+        onNavigate={handleNavigateFromNotif}
       >
         {selectedPartyId ? (
           <PartyDetail
             partyId={selectedPartyId}
-            onBack={() => { setSelectedPartyId(null); setInitialPostId(null); }}
+            onBack={() => { setSelectedPartyId(null); setInitialPostId(null); setInitialTab(null); }}
             onDelete={() => {
               setSelectedPartyId(null);
               setInitialPostId(null);
+              setInitialTab(null);
               setRefreshKey((prev) => prev + 1);
             }}
             initialPostId={initialPostId ?? undefined}
+            initialTab={(initialTab as any) ?? undefined}
           />
         ) : activeTab === 'parties' ? (
           <PartyList key={refreshKey} onSelectParty={setSelectedPartyId} />

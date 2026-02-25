@@ -9,9 +9,10 @@ interface LayoutProps {
   activeTab: 'parties' | 'subscribers' | 'profile';
   onTabChange: (tab: 'parties' | 'subscribers' | 'profile') => void;
   onCreateParty: () => void;
+  onNavigate?: (partyId: string, tab?: string, postId?: string) => void;
 }
 
-export function Layout({ children, activeTab, onTabChange, onCreateParty }: LayoutProps) {
+export function Layout({ children, activeTab, onTabChange, onCreateParty, onNavigate }: LayoutProps) {
   const { signOut, user } = useAuth(); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { canInstall, install } = usePWAInstall();
@@ -73,7 +74,7 @@ export function Layout({ children, activeTab, onTabChange, onCreateParty }: Layo
             </div>
 
             <div className="flex items-center space-x-2">
-              <NotificationsBell userId={user?.id} />
+              <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
             </div>
 
             <div className="hidden md:flex items-center space-x-3">

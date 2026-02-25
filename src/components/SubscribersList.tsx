@@ -22,6 +22,8 @@ export function SubscribersList() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [friendCode, setFriendCode] = useState('');
   const [addingFriend, setAddingFriend] = useState(false);
+  const [confirmKickId, setConfirmKickId] = useState<string | null>(null);
+  const [confirmUnsubId, setConfirmUnsubId] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -362,7 +364,7 @@ export function SubscribersList() {
                       </button>
                     )}
                     <button
-                      onClick={() => kickSubscriber(sub.id)}
+                      onClick={() => setConfirmKickId(sub.id)}
                       className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition"
                       title="Retirer ce subscriber"
                     >
@@ -407,7 +409,7 @@ export function SubscribersList() {
                     <div className="text-xs text-neutral-400 truncate">{sub.profiles.email}</div>
                   </div>
                   <button
-                    onClick={() => unsubscribeFrom(sub.id)}
+                    onClick={() => setConfirmUnsubId(sub.id)}
                     className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition flex-shrink-0"
                     title="Se désabonner"
                   >
@@ -419,6 +421,37 @@ export function SubscribersList() {
           </div>
         </div>
       </div>
+      {(confirmKickId || confirmUnsubId) && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <p className="text-white font-medium mb-1">
+              {confirmKickId ? 'Retirer ce subscriber ?' : 'Se désabonner ?'}
+            </p>
+            <p className="text-neutral-400 text-sm mb-6">
+              {confirmKickId
+                ? 'Cette personne ne verra plus tes soirées.'
+                : 'Tu ne verras plus les soirées de cette personne.'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (confirmKickId) { kickSubscriber(confirmKickId); setConfirmKickId(null); }
+                  else if (confirmUnsubId) { unsubscribeFrom(confirmUnsubId); setConfirmUnsubId(null); }
+                }}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition"
+              >
+                Confirmer
+              </button>
+              <button
+                onClick={() => { setConfirmKickId(null); setConfirmUnsubId(null); }}
+                className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl font-medium transition"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
