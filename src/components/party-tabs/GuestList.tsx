@@ -256,6 +256,12 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     }
   };
 
+  const emailToDisplayName = (email: string): string => {
+    const local = email.split('@')[0];
+    const cleaned = local.replace(/\d+/g, '').replace(/[._-]+/g, ' ').trim();
+    return cleaned || local;
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'confirmed': return <Check className="w-5 h-5 text-green-500" />;
@@ -430,20 +436,20 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
           guests.map((guest) => (
             <div
               key={guest.id}
-              className="flex items-center justify-between bg-neutral-800 rounded-lg p-4"
+              className="bg-neutral-800 rounded-lg p-4 space-y-2"
             >
-              <div className="flex items-center space-x-3 flex-1">
+              <div className="flex items-center gap-3 min-w-0">
                 {guest.profiles.avatar_url ? (
                   <img src={guest.profiles.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                 ) : (
                   <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                    {(guest.profiles.full_name || guest.profiles.email)[0].toUpperCase()}
+                    {(guest.profiles.full_name || emailToDisplayName(guest.profiles.email))[0].toUpperCase()}
                   </div>
                 )}
                 {getStatusIcon(guest.status)}
-                <div className="flex-1">
-                  <div className="text-white font-medium">
-                    {guest.profiles.full_name || guest.profiles.email}
+                <div className="min-w-0">
+                  <div className="text-white font-medium truncate">
+                    {guest.profiles.full_name || emailToDisplayName(guest.profiles.email)}
                   </div>
                   <div className="text-sm text-neutral-500">{getStatusText(guest.status)}</div>
                   {guest.guest_companions && guest.guest_companions.length > 0 && (
@@ -455,7 +461,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
               </div>
 
               {(guest.user_id === user?.id || isCreator) && !(isCreator && guest.user_id === user?.id) && (
-                <div className="flex space-x-2">
+                <div className="flex gap-2 pl-11 [&>button]:whitespace-nowrap [&>button]:flex-none">
                   {guest.status !== 'confirmed' && (
                     <button
                       onClick={() => updateStatus(guest.id, 'confirmed')}
