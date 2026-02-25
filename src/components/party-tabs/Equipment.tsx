@@ -163,7 +163,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
           )
         );
       } else if (user?.id) {
-        const title = '🧰 Ajout d'équipement par un invité';
+        const title = `🧰 Ajout d'équipement par un invité`;
         const body  = `${user.email || 'Un invité'} a ajouté « ${data?.name} » (${data?.quantity_required} requis).`;
 
         await sendRemoteNotification(
