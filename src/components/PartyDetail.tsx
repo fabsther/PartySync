@@ -402,7 +402,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
               </div>
 
               <div className="flex-1">
-                <h1 className={`text-3xl font-bold mb-2 ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white'}`}>{party.title}</h1>
+                <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white'}`}>{party.title}</h1>
                 <div className="flex items-center space-x-3">
                   {!party.is_date_fixed && (
                     <span className="inline-block px-3 py-1 bg-orange-500/20 text-orange-400 text-sm rounded-full">
@@ -600,11 +600,11 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
           </div>
         </div>
 
-        <div className="border-b border-neutral-800">
-          <div className="flex flex-wrap">
+        <div className="border-b border-neutral-800 overflow-x-auto scrollbar-none">
+          <div className="flex min-w-max">
             <button
               onClick={() => setActiveTab('posts')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`shrink-0 flex items-center space-x-2 px-4 py-3.5 font-medium transition ${
                 activeTab === 'posts'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -615,7 +615,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
             </button>
             <button
               onClick={() => setActiveTab('guests')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`shrink-0 flex items-center space-x-2 px-4 py-3.5 font-medium transition ${
                 activeTab === 'guests'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -626,7 +626,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
             </button>
             <button
               onClick={() => setActiveTab('carshare')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`shrink-0 flex items-center space-x-2 px-4 py-3.5 font-medium transition ${
                 activeTab === 'carshare'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -637,7 +637,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
             </button>
             <button
               onClick={() => setActiveTab('equipment')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`shrink-0 flex items-center space-x-2 px-4 py-3.5 font-medium transition ${
                 activeTab === 'equipment'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -648,7 +648,7 @@ export function PartyDetail({ partyId, onBack, onDelete }: PartyDetailProps) {
             </button>
             <button
               onClick={() => setActiveTab('food')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`shrink-0 flex items-center space-x-2 px-4 py-3.5 font-medium transition ${
                 activeTab === 'food'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
