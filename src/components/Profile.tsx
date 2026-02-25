@@ -64,12 +64,6 @@ export function Profile() {
 
     setAvatarError('');
 
-    if (file.size > 3 * 1024 * 1024) {
-      setAvatarError('L\'image doit faire moins de 3 MB');
-      e.target.value = '';
-      return;
-    }
-
     if (!file.type.startsWith('image/')) {
       setAvatarError('Seules les images sont acceptées');
       e.target.value = '';
@@ -210,7 +204,7 @@ export function Profile() {
             )}
           </div>
 
-          <p className="text-xs text-neutral-500 mt-2">Clique pour changer · max 3 MB</p>
+          <p className="text-xs text-neutral-500 mt-2">Clique pour changer · auto-redimensionné</p>
           {avatarError && <p className="text-xs text-red-400 mt-1">{avatarError}</p>}
 
           <input
