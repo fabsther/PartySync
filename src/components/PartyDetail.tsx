@@ -674,7 +674,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId }: PartyD
             />
           )}
           {activeTab === 'carshare' && <CarSharing partyId={partyId} />}
-          {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} />}
+          {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />}
           {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'posts' && (
             <Posts partyId={partyId} creatorId={party.created_by} partyTitle={party.title} highlightPostId={initialPostId} />

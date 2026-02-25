@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Check, Trash2 } from 'lucide-react';
+import { Plus, Check, Trash2, Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
@@ -17,13 +17,22 @@ interface EquipmentItem {
   name: string;
   is_required: boolean;
   is_available: boolean;
-  quantity_required: number; // NEW: quantité requise (unités)
+  quantity_required: number;
   equipment_contributors: EquipmentContributor[];
+}
+
+interface GuestEntry {
+  user_id: string;
+  profiles: {
+    full_name: string | null;
+    email: string;
+  };
 }
 
 interface EquipmentProps {
   partyId: string;
   creatorId: string;
+  partyTitle?: string;
 }
 
 const defaultEquipment: Array<{ name: string; quantity_required: number }> = [
@@ -37,12 +46,15 @@ const defaultEquipment: Array<{ name: string; quantity_required: number }> = [
   { name: 'Sun Umbrella',         quantity_required: 2 },
 ];
 
-export function Equipment({ partyId, creatorId }: EquipmentProps) {
+export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newItemName, setNewItemName] = useState('');
-  const [newItemQty, setNewItemQty] = useState<number>(1); // NEW: quantité à créer
+  const [newItemQty, setNewItemQty] = useState<number>(1);
+  const [pingEquipmentId, setPingEquipmentId] = useState<string | null>(null);
+  const [pingedGuests, setPingedGuests] = useState<Map<string, Set<string>>>(new Map());
+  const [guests, setGuests] = useState<GuestEntry[]>([]);
   const { user } = useAuth();
 
   const isCreator = user?.id === creatorId;
@@ -50,6 +62,17 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
   useEffect(() => {
     loadEquipment();
   }, [partyId]);
+
+  // Charger les invités pour le dropdown de ping (organizer only)
+  useEffect(() => {
+    if (!isCreator) return;
+    supabase
+      .from('party_guests')
+      .select('user_id, profiles(full_name, email)')
+      .eq('party_id', partyId)
+      .in('status', ['invited', 'confirmed'])
+      .then(({ data }) => setGuests((data as any) || []));
+  }, [partyId, isCreator]);
 
   const loadEquipment = async () => {
     try {
@@ -81,7 +104,6 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
       const { error } = await supabase.from('equipment').insert(items);
       if (error) throw error;
       loadEquipment();
-      // 🔕 Pas de notification ici (demandé)
     } catch (error) {
       console.error('Error adding default equipment:', error);
     }
@@ -112,12 +134,10 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
       setShowForm(false);
       await loadEquipment();
 
-      // 🔔 NOTIFICATIONS UNIQUEMENT pour l'ajout CUSTOM
       const deepLink = `/party/${partyId}?tab=equipment`;
 
       if (user?.id === creatorId) {
-        // → le propriétaire notifie tous les guests (invited + confirmed), hors creator
-        const { data: guests, error: gErr } = await supabase
+        const { data: guestList, error: gErr } = await supabase
           .from('party_guests')
           .select('user_id, status')
           .eq('party_id', partyId)
@@ -125,11 +145,11 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
         if (gErr) throw gErr;
 
         const uniqueUserIds = Array.from(
-          new Set((guests || []).map(g => g.user_id).filter(uid => !!uid && uid !== creatorId))
+          new Set((guestList || []).map(g => g.user_id).filter(uid => !!uid && uid !== creatorId))
         );
 
         const title = '🧰 Nouvel équipement ajouté';
-        const body  = `« ${data?.name} » a été ajouté (${data?.quantity_required} requis). Ouvrez l’onglet Équipement pour contribuer.`;
+        const body  = `« ${data?.name} » a été ajouté (${data?.quantity_required} requis). Ouvrez l'onglet Équipement pour contribuer.`;
 
         await Promise.all(
           uniqueUserIds.map(uid =>
@@ -143,8 +163,7 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
           )
         );
       } else if (user?.id) {
-        // → un invité ajoute un équipement : notifier le creator
-        const title = '🧰 Ajout d’équipement par un invité';
+        const title = '🧰 Ajout d'équipement par un invité';
         const body  = `${user.email || 'Un invité'} a ajouté « ${data?.name} » (${data?.quantity_required} requis).`;
 
         await sendRemoteNotification(
@@ -203,6 +222,29 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
       console.error('Error deleting equipment:', error);
       alert('Failed to delete equipment item.');
     }
+  };
+
+  const pingGuestForEquipment = async (guestUserId: string, item: EquipmentItem) => {
+    const notifTitle = partyTitle
+      ? `🧰 On a besoin de toi — ${partyTitle}`
+      : '🧰 On a besoin de toi !';
+    const notifBody = `Peux-tu amener « ${item.name} » à la soirée ?`;
+
+    await sendRemoteNotification(
+      guestUserId,
+      notifTitle,
+      notifBody,
+      { partyId, action: 'equipment_ping', equipmentId: item.id },
+      `/party/${partyId}?tab=equipment`
+    );
+
+    setPingedGuests(prev => {
+      const next = new Map(prev);
+      const set = new Set(next.get(item.id) || []);
+      set.add(guestUserId);
+      next.set(item.id, set);
+      return next;
+    });
   };
 
   if (loading) {
@@ -272,8 +314,14 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
             const contributors = item.equipment_contributors || [];
             const isContributing = contributors.some((c) => c.user_id === user?.id);
 
-            const brought = contributors.length; // 1 unité par contributeur
+            const brought = contributors.length;
             const needed = Math.max(0, (item.quantity_required || 0) - brought);
+
+            // Invités éligibles au ping : pas encore contributeurs sur cet item
+            const pingableGuests = guests.filter(
+              g => g.user_id !== creatorId && !contributors.some(c => c.user_id === g.user_id)
+            );
+            const itemPinged = pingedGuests.get(item.id) || new Set<string>();
 
             return (
               <div
@@ -326,6 +374,47 @@ export function Equipment({ partyId, creatorId }: EquipmentProps) {
                 >
                   {isContributing ? "I won't bring this" : "I'll bring this"}
                 </button>
+
+                {/* Ping button — organizer only, item not fully covered */}
+                {isCreator && needed > 0 && (
+                  <div className="mt-2 pt-2 border-t border-neutral-700">
+                    <button
+                      onClick={() => setPingEquipmentId(pingEquipmentId === item.id ? null : item.id)}
+                      className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      Relancer quelqu'un
+                    </button>
+
+                    {pingEquipmentId === item.id && (
+                      <div className="mt-2 bg-neutral-900 rounded-lg overflow-hidden">
+                        {pingableGuests.length === 0 ? (
+                          <p className="text-xs text-neutral-500 px-3 py-2">
+                            Tous les invités ont déjà contribué
+                          </p>
+                        ) : (
+                          pingableGuests.map(g => {
+                            const name = g.profiles.full_name || g.profiles.email;
+                            const wasPinged = itemPinged.has(g.user_id);
+                            return (
+                              <button
+                                key={g.user_id}
+                                onClick={() => pingGuestForEquipment(g.user_id, item)}
+                                disabled={wasPinged}
+                                className="w-full flex items-center justify-between px-3 py-2 hover:bg-neutral-800 transition text-sm text-left disabled:opacity-50"
+                              >
+                                <span className="text-white truncate">{name}</span>
+                                {wasPinged
+                                  ? <Check className="w-3.5 h-3.5 text-green-400 flex-shrink-0 ml-2" />
+                                  : <Bell className="w-3.5 h-3.5 text-orange-400 flex-shrink-0 ml-2" />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })
