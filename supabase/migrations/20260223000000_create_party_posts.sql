@@ -2,7 +2,7 @@
 CREATE TABLE party_posts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   party_id uuid REFERENCES parties(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  user_id uuid REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
   content text NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 1000),
   created_at timestamptz DEFAULT now() NOT NULL
 );

@@ -37,6 +37,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionableUsers, setMentionableUsers] = useState<MentionableUser[]>([]);
   const [mentionedUsers, setMentionedUsers] = useState<Map<string, string>>(new Map());
+  const [confirmDeletePostId, setConfirmDeletePostId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
   const isCreator = user?.id === creatorId;
@@ -192,13 +193,14 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
         ? `Nouveau post — ${partyTitle}`
         : 'Nouveau post sur la soirée';
 
+      const postId = insertedPost?.id;
       await Promise.allSettled(
         [...recipientIds].map((uid) =>
           sendRemoteNotification(
             uid,
             notifTitle,
             `${posterName} : ${content.length > 80 ? content.slice(0, 80) + '...' : content}`,
-            { partyId, action: 'party_post' },
+            { partyId, action: 'party_post', ...(postId ? { postId } : {}) },
             `/party/${partyId}?tab=posts`
           )
         )
@@ -230,6 +232,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
   const deletePost = async (postId: string) => {
     await supabase.from('party_posts').delete().eq('id', postId);
     setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setConfirmDeletePostId(null);
   };
 
   const formatTime = (dateString: string) => {
@@ -353,7 +356,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                       </div>
                       {canDelete && (
                         <button
-                          onClick={() => deletePost(post.id)}
+                          onClick={() => setConfirmDeletePostId(post.id)}
                           className="flex-shrink-0 p-1.5 text-neutral-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
                           title="Supprimer"
                         >
@@ -369,6 +372,32 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {confirmDeletePostId && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-800 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 className="text-white font-semibold text-lg">Supprimer ce post ?</h3>
+            <p className="text-neutral-400 text-sm">
+              Ce post et toutes les notifications associées seront définitivement supprimés.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeletePostId(null)}
+                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl text-sm font-medium transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => deletePost(confirmDeletePostId)}
+                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
