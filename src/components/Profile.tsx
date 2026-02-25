@@ -151,7 +151,7 @@ export function Profile() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 sm:p-8">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-8">
         <div className="flex items-center space-x-3 mb-8">
           <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-3 rounded-lg">
             <User className="w-6 h-6 text-white" />
@@ -288,9 +288,9 @@ export function Profile() {
       <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
         <h3 className="text-lg font-semibold text-white mb-4">Account Information</h3>
         <div className="space-y-3 text-sm">
-          <div>
-            <div className="text-neutral-400 mb-1">User ID</div>
-            <div className="text-neutral-300 font-mono text-xs break-all">{user?.id}</div>
+          <div className="flex justify-between">
+            <span className="text-neutral-400">User ID</span>
+            <span className="text-neutral-300 font-mono">{user?.id}</span>
           </div>
         </div>
       </div>

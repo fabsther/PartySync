@@ -247,38 +247,38 @@ export function SubscribersList() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">Invite Link</label>
-            <div className="flex gap-2">
+            <div className="flex space-x-3">
               <input
                 type="text"
                 readOnly
                 value={`${window.location.origin}?invite=${inviteCode}`}
-                className="flex-1 min-w-0 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-sm"
+                className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white"
               />
               <button
                 onClick={copyInviteLink}
-                className="shrink-0 px-3 sm:px-5 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2"
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
               >
                 {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
+                <span>{copied ? 'Copied!' : 'Copy'}</span>
               </button>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">Your Invite Code</label>
-            <div className="flex gap-2">
+            <div className="flex space-x-3">
               <input
                 type="text"
                 readOnly
                 value={inviteCode}
-                className="flex-1 min-w-0 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-xl font-mono tracking-wider text-center"
+                className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-2xl font-mono tracking-wider text-center"
               />
               <button
                 onClick={copyInviteCode}
-                className="shrink-0 px-3 sm:px-5 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2"
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
               >
                 {copiedCode ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                <span className="hidden sm:inline">{copiedCode ? 'Copied!' : 'Copy'}</span>
+                <span>{copiedCode ? 'Copied!' : 'Copy'}</span>
               </button>
             </div>
           </div>
@@ -293,13 +293,13 @@ export function SubscribersList() {
         <p className="text-neutral-300 mb-4">
           Enter a friend's invite code to subscribe to their parties.
         </p>
-        <div className="flex gap-2">
+        <div className="flex space-x-3">
           <input
             type="text"
             value={friendCode}
             onChange={(e) => setFriendCode(e.target.value.toUpperCase())}
             placeholder="Enter invite code"
-            className="flex-1 min-w-0 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition uppercase font-mono tracking-wider text-center text-xl"
+            className="flex-1 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition uppercase font-mono tracking-wider text-center text-xl"
             maxLength={8}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -311,10 +311,10 @@ export function SubscribersList() {
           <button
             onClick={addFriendByCode}
             disabled={addingFriend || !friendCode.trim()}
-            className="shrink-0 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UserPlus className="w-5 h-5" />
-            <span className="hidden sm:inline">{addingFriend ? 'Adding...' : 'Add'}</span>
+            <span>{addingFriend ? 'Adding...' : 'Add'}</span>
           </button>
         </div>
       </div>
