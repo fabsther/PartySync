@@ -1,0 +1,1 @@
+claude remote-control --dangerously-skip-permissions
