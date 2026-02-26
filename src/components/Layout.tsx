@@ -20,18 +20,25 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
     <div className="min-h-screen bg-neutral-950 text-white">
       <nav className="sticky top-0 z-40 bg-neutral-900 border-b border-neutral-800 safe-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="relative flex justify-between items-center h-16">
+            {/* Mobile: logo + name centered absolutely */}
+            <div className="md:hidden absolute inset-x-0 flex justify-center items-center pointer-events-none">
+              <div className="flex items-center space-x-2">
+                <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-1.5 rounded-lg">
+                  <PartyPopper className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-lg font-bold">PartySync</span>
+              </div>
+            </div>
 
-            {/* Mobile: burger left — Desktop: app icon + title left */}
+            {/* Left: burger (mobile) / app icon+title (desktop) */}
             <div className="flex items-center">
-              {/* Burger — mobile only, left */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden text-neutral-400 hover:text-white p-2 -ml-2 mr-1"
+                className="md:hidden text-neutral-400 hover:text-white p-2 -ml-2"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
-              {/* App icon + title — desktop only */}
               <div className="hidden md:flex items-center space-x-3">
                 <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-2 rounded-lg">
                   <PartyPopper className="w-6 h-6 text-white" />
@@ -77,7 +84,7 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
               </button>
             </div>
 
-            {/* Right: bell + install + app icon (mobile) */}
+            {/* Right: bell + install */}
             <div className="flex items-center space-x-1">
               <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
               {canInstall && (
@@ -89,10 +96,6 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                   <Download className="w-5 h-5" />
                 </button>
               )}
-              {/* App icon — mobile only, right */}
-              <div className="md:hidden bg-gradient-to-br from-orange-500 to-orange-600 p-2 rounded-lg">
-                <PartyPopper className="w-5 h-5 text-white" />
-              </div>
             </div>
 
           </div>
