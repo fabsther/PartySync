@@ -674,7 +674,9 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               partyDateFixed={party.is_date_fixed}
             />
           )}
-          {activeTab === 'carshare' && <CarSharing partyId={partyId} />}
+          {activeTab === 'carshare' && (
+            <CarSharing partyId={partyId} partyAddress={party.address || undefined} partyTitle={party.title} />
+          )}
           {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />}
           {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'posts' && (
