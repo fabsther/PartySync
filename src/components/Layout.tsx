@@ -21,13 +21,26 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
       <nav className="sticky top-0 z-40 bg-neutral-900 border-b border-neutral-800 safe-top">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-2 rounded-lg">
-                <PartyPopper className="w-6 h-6 text-white" />
+
+            {/* Mobile: burger left — Desktop: app icon + title left */}
+            <div className="flex items-center">
+              {/* Burger — mobile only, left */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden text-neutral-400 hover:text-white p-2 -ml-2 mr-1"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+              {/* App icon + title — desktop only */}
+              <div className="hidden md:flex items-center space-x-3">
+                <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-2 rounded-lg">
+                  <PartyPopper className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xl font-bold">PartySync</span>
               </div>
-              <span className="text-xl font-bold">PartySync</span>
             </div>
 
+            {/* Desktop nav tabs — center */}
             <div className="hidden md:flex items-center space-x-1">
               <button
                 onClick={() => onTabChange('parties')}
@@ -64,7 +77,8 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
               </button>
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* Right: bell + install + app icon (mobile) */}
+            <div className="flex items-center space-x-1">
               <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
               {canInstall && (
                 <button
@@ -75,13 +89,12 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                   <Download className="w-5 h-5" />
                 </button>
               )}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden text-neutral-400 hover:text-white p-2"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+              {/* App icon — mobile only, right */}
+              <div className="md:hidden bg-gradient-to-br from-orange-500 to-orange-600 p-2 rounded-lg">
+                <PartyPopper className="w-5 h-5 text-white" />
+              </div>
             </div>
+
           </div>
         </div>
 
