@@ -31,14 +31,11 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
               </div>
             </div>
 
-            {/* Left: burger (mobile) / app icon+title (desktop) */}
+            {/* Left: bell (mobile) / app icon+title (desktop) */}
             <div className="flex items-center">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden text-neutral-400 hover:text-white p-2 -ml-2"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+              <div className="md:hidden">
+                <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
+              </div>
               <div className="hidden md:flex items-center space-x-3">
                 <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-2 rounded-lg">
                   <PartyPopper className="w-6 h-6 text-white" />
@@ -84,9 +81,11 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
               </button>
             </div>
 
-            {/* Right: bell + install */}
+            {/* Right: bell+install (desktop) / install+burger (mobile) */}
             <div className="flex items-center space-x-1">
-              <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
+              <div className="hidden md:block">
+                <NotificationsBell userId={user?.id} onNavigate={onNavigate} />
+              </div>
               {canInstall && (
                 <button
                   onClick={install}
@@ -96,19 +95,34 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                   <Download className="w-5 h-5" />
                 </button>
               )}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden text-neutral-400 hover:text-white p-2 -mr-2"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
             </div>
 
           </div>
         </div>
+      </nav>
 
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-neutral-800 bg-neutral-900">
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-neutral-950/80"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          {/* Menu panel */}
+          <div
+            className="md:hidden fixed left-0 right-0 z-50 bg-neutral-900/95 border-b border-neutral-800 shadow-2xl"
+            style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}
+          >
             <div className="px-4 py-3 space-y-2">
               <button
-                onClick={() => {
-                  onTabChange('parties');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => { onTabChange('parties'); setMobileMenuOpen(false); }}
                 className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
                   activeTab === 'parties'
                     ? 'bg-orange-500 text-white'
@@ -119,10 +133,7 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                 Parties
               </button>
               <button
-                onClick={() => {
-                  onTabChange('subscribers');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => { onTabChange('subscribers'); setMobileMenuOpen(false); }}
                 className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
                   activeTab === 'subscribers'
                     ? 'bg-orange-500 text-white'
@@ -133,10 +144,7 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                 Subscribers
               </button>
               <button
-                onClick={() => {
-                  onTabChange('profile');
-                  setMobileMenuOpen(false);
-                }}
+                onClick={() => { onTabChange('profile'); setMobileMenuOpen(false); }}
                 className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
                   activeTab === 'profile'
                     ? 'bg-orange-500 text-white'
@@ -148,10 +156,7 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
               </button>
               {canInstall && (
                 <button
-                  onClick={() => {
-                    install();
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={() => { install(); setMobileMenuOpen(false); }}
                   className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center space-x-2"
                 >
                   <Download className="w-5 h-5" />
@@ -160,8 +165,8 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
               )}
             </div>
           </div>
-        )}
-      </nav>
+        </>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
