@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, MapPin, Save, Loader, Camera, X, LogOut } from 'lucide-react';
+import { User, Mail, MapPin, Save, Loader, Camera, X, LogOut, Bell, BellOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAvatarMedia, deletePartyMedia } from '../lib/uploadMedia';
+import { registerNotificationToken, unregisterPushSubscription, checkNotificationSupport } from '../lib/notifications';
+
+type NotifStatus = 'active' | 'inactive' | 'denied' | 'unsupported';
 
 export function Profile() {
   const { user, signOut } = useAuth();
@@ -14,6 +17,39 @@ export function Profile() {
       console.error('Error signing out:', error);
     }
   };
+
+  const [notifStatus, setNotifStatus] = useState<NotifStatus>('inactive');
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  const refreshNotifStatus = async () => {
+    if (!checkNotificationSupport()) { setNotifStatus('unsupported'); return; }
+    if (Notification.permission === 'denied') { setNotifStatus('denied'); return; }
+    const reg = await navigator.serviceWorker.getRegistration().catch(() => null);
+    const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+    setNotifStatus(Notification.permission === 'granted' && !!sub ? 'active' : 'inactive');
+  };
+
+  useEffect(() => { refreshNotifStatus(); }, []);
+
+  const handleNotifToggle = async () => {
+    if (!user || notifLoading) return;
+    if (notifStatus === 'denied') {
+      alert('Les notifications sont bloquées par le navigateur.\nVa dans les paramètres du site (icône 🔒 dans la barre d\'adresse) pour les autoriser.');
+      return;
+    }
+    setNotifLoading(true);
+    try {
+      if (notifStatus === 'active') {
+        await unregisterPushSubscription(user.id);
+      } else {
+        await registerNotificationToken(user.id);
+      }
+      await refreshNotifStatus();
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -296,6 +332,45 @@ export function Profile() {
           </div>
         </div>
       </div>
+
+      {notifStatus !== 'unsupported' && (
+        <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-1">Notifications</h3>
+          <p className="text-neutral-400 text-sm mb-4">
+            {notifStatus === 'active' && 'Les notifications push sont activées.'}
+            {notifStatus === 'inactive' && 'Active les notifications pour être averti en temps réel.'}
+            {notifStatus === 'denied' && 'Les notifications sont bloquées. Autorise-les dans les paramètres du site.'}
+          </p>
+          <button
+            onClick={handleNotifToggle}
+            disabled={notifLoading}
+            className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              notifStatus === 'active'
+                ? 'bg-green-600/20 text-green-400 border border-green-500/40 hover:bg-green-600/30'
+                : notifStatus === 'denied'
+                ? 'bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-default'
+                : 'bg-orange-500/10 text-orange-400 border border-orange-500/30 hover:bg-orange-500/20'
+            }`}
+          >
+            {notifLoading ? (
+              <Loader className="w-5 h-5 animate-spin" />
+            ) : notifStatus === 'active' ? (
+              <Bell className="w-5 h-5" />
+            ) : (
+              <BellOff className="w-5 h-5" />
+            )}
+            <span>
+              {notifLoading
+                ? 'En cours...'
+                : notifStatus === 'active'
+                ? 'Notifications activées'
+                : notifStatus === 'denied'
+                ? 'Notifications bloquées'
+                : 'Notifications désactivées'}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="mt-6">
         <button

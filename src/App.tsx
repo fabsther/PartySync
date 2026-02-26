@@ -221,18 +221,15 @@ function AppContent() {
   useEffect(() => {
     if (!user || !checkNotificationSupport()) return;
 
-    const hasAsked = localStorage.getItem('notification-permission-asked');
-
-    if (!hasAsked && !isIOS()) {
-      // On iOS, Notification.requestPermission() requires a user gesture —
-      // the InstallPrompt component shows an "Enable notifications" button instead.
-      setTimeout(() => {
-        registerNotificationToken(user.id).then((success) => {
-          if (success) localStorage.setItem('notification-permission-asked', 'true');
-        });
-      }, 2000);
-    } else if (Notification.permission === 'granted') {
+    if (Notification.permission === 'granted') {
+      // Déjà accordé : on s'assure que la subscription est bien en DB
       registerNotificationToken(user.id);
+    } else if (Notification.permission === 'default' && !isIOS()) {
+      // Pas encore demandé (ou permission réinitialisée) : demander après un court délai
+      // Sur iOS, c'est le bouton dans InstallPrompt / Profile qui fait le prompt
+      setTimeout(() => {
+        registerNotificationToken(user.id);
+      }, 2000);
     }
 
     // Ré-enregistrement immédiat si le SW détecte un changement de subscription

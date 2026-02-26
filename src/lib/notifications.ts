@@ -185,3 +185,26 @@ export async function sendLocalNotification(title: string, body: string, data?: 
 export function checkNotificationSupport(): boolean {
   return 'Notification' in window && 'serviceWorker' in navigator;
 }
+
+export async function unregisterPushSubscription(userId: string): Promise<boolean> {
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return false;
+
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      // Supprimer de la DB
+      await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('endpoint', subscription.endpoint);
+      // Désabonner côté navigateur
+      await subscription.unsubscribe();
+      console.log('[Push] Subscription removed');
+    }
+    return true;
+  } catch (error) {
+    console.error('[Push] Error unregistering push subscription:', error);
+    return false;
+  }
+}
