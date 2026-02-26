@@ -70,7 +70,9 @@ async function registerPushSubscription(userId: string): Promise<boolean> {
       return false;
     }
 
-    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC;
+    // VAPID public key — public by design, hardcoded as fallback if env var is missing/wrong
+    const VAPID_PUBLIC_KEY = 'BJTbYxP8NkJdy-itn0Jxt3KQcyi-SjsqQngq_v6Lh1Mle5d4ZBZhc9BmhRPG3Vmxe8F5J5ihtESfcEJ0Dt-SWyo';
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC || VAPID_PUBLIC_KEY;
     console.log('[Push] VAPID key loaded:', vapidPublicKey ? `${vapidPublicKey.substring(0, 20)}...` : 'NOT FOUND');
 
     if (!vapidPublicKey) {
