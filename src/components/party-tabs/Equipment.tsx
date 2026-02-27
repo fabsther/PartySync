@@ -3,6 +3,7 @@ import { Plus, Check, Trash2, Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
+import { CrowdfundIcon } from './Crowdfunding';
 
 interface EquipmentContributor {
   user_id: string;
@@ -35,6 +36,126 @@ interface EquipmentProps {
   partyTitle?: string;
 }
 
+// ============================
+// AddToCrowdfundPopup (Equipment)
+// ============================
+interface AddToCrowdfundPopupProps {
+  item: EquipmentItem;
+  partyId: string;
+  onClose: () => void;
+}
+
+function AddToCrowdfundPopup({ item, partyId, onClose }: AddToCrowdfundPopupProps) {
+  const { user } = useAuth();
+  const [quantity, setQuantity] = useState(String(item.quantity_required));
+  const [price, setPrice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSave = async () => {
+    if (!user) return;
+    const qty = parseFloat(quantity) || 1;
+    const totalPrice = parseFloat(price) || 0;
+    setSaving(true);
+    setError(null);
+    try {
+      // Upsert crowdfund for this user+party
+      const { data: cf, error: cfErr } = await supabase
+        .from('crowdfunds')
+        .upsert({ party_id: partyId, creator_id: user.id, status: 'active' }, { onConflict: 'party_id,creator_id' })
+        .select('id')
+        .single();
+      if (cfErr) throw cfErr;
+
+      // Check if item already in crowdfund
+      const { data: existing } = await supabase
+        .from('crowdfund_items')
+        .select('id')
+        .eq('crowdfund_id', cf.id)
+        .eq('item_id', item.id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error: upErr } = await supabase
+          .from('crowdfund_items')
+          .update({ quantity: qty, total_price: totalPrice, people_covered: 0 })
+          .eq('id', existing.id);
+        if (upErr) throw upErr;
+      } else {
+        const { error: insErr } = await supabase.from('crowdfund_items').insert({
+          crowdfund_id: cf.id,
+          item_type: 'equipment',
+          item_id: item.id,
+          item_name: item.name,
+          quantity: qty,
+          people_covered: 0,
+          total_price: totalPrice,
+        });
+        if (insErr) throw insErr;
+      }
+      setSuccess(true);
+      setTimeout(onClose, 800);
+    } catch (e: any) {
+      setError(e.message || 'Erreur.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-neutral-800">
+        <button onClick={onClose} className="text-neutral-400 hover:text-white transition text-2xl leading-none">←</button>
+        <h2 className="text-white font-semibold text-lg">Ajouter à ma cagnotte</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {success && <p className="text-green-400 text-sm">Ajouté !</p>}
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Item</label>
+          <div className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-400">{item.name}</div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Quantité</label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="w-full px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-xl text-white focus:outline-none focus:border-orange-500 transition"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Prix total (€)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Ex: 25.00"
+            autoFocus
+            className="w-full px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 transition"
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving || success}
+          className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
+        >
+          {saving ? 'Enregistrement…' : success ? '✅ Ajouté !' : 'Ajouter à ma cagnotte'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const defaultEquipment: Array<{ name: string; quantity_required: number }> = [
   { name: 'BBQ Grill',           quantity_required: 1 },
   { name: 'Plancha',              quantity_required: 1 },
@@ -55,6 +176,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
   const [pingEquipmentId, setPingEquipmentId] = useState<string | null>(null);
   const [pingedGuests, setPingedGuests] = useState<Map<string, Set<string>>>(new Map());
   const [guests, setGuests] = useState<GuestEntry[]>([]);
+  const [crowdfundItem, setCrowdfundItem] = useState<EquipmentItem | null>(null);
   const { user } = useAuth();
 
   const isCreator = user?.id === creatorId;
@@ -341,6 +463,13 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                   </div>
                   <div className="flex items-center space-x-2">
                     {brought > 0 && <Check className="w-5 h-5 text-green-500 flex-shrink-0" />}
+                    <button
+                      onClick={() => setCrowdfundItem(item)}
+                      className="p-1 text-yellow-400 hover:bg-yellow-500/20 rounded transition"
+                      title="Ajouter à ma cagnotte"
+                    >
+                      <CrowdfundIcon className="w-4 h-4" />
+                    </button>
                     {isCreator && (
                       <button
                         onClick={() => deleteEquipment(item.id)}
@@ -420,6 +549,14 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
           })
         )}
       </div>
+
+      {crowdfundItem && (
+        <AddToCrowdfundPopup
+          item={crowdfundItem}
+          partyId={partyId}
+          onClose={() => setCrowdfundItem(null)}
+        />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Plus, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { CrowdfundIcon } from './Crowdfunding';
 
 // ============================
 // Types
@@ -140,6 +141,159 @@ const inputCls =
   'w-full px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition';
 const disabledCls =
   'w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-500';
+
+// ============================
+// AddFoodToCrowdfundPopup
+// ============================
+interface AddFoodToCrowdfundPopupProps {
+  item: FoodItem;
+  partyId: string;
+  guestCount: number;
+  onClose: () => void;
+}
+
+function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFoodToCrowdfundPopupProps) {
+  const { user } = useAuth();
+
+  // Compute ratio from existing contributions
+  const nonZero = item.food_contributions.filter((c) => c.quantity > 0);
+  const totalQty = nonZero.reduce((s, c) => s + c.quantity, 0);
+  const totalPeople = nonZero.reduce((s, c) => s + c.people_covered, 0);
+  const ratio = totalQty > 0 ? totalPeople / totalQty : null;
+
+  const [quantity, setQuantity] = useState('1');
+  const [peopleCovered, setPeopleCovered] = useState(
+    ratio !== null ? String(Math.round(1 * ratio)) : String(guestCount)
+  );
+  const [price, setPrice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const qty = parseFloat(quantity) || 1;
+
+  useEffect(() => {
+    if (ratio !== null) {
+      setPeopleCovered(String(Math.round(qty * ratio)));
+    }
+  }, [quantity, ratio]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    const totalPrice = parseFloat(price) || 0;
+    const pc = ratio !== null ? Math.round(qty * ratio) : parseFloat(peopleCovered) || 0;
+    setSaving(true);
+    setError(null);
+    try {
+      const { data: cf, error: cfErr } = await supabase
+        .from('crowdfunds')
+        .upsert({ party_id: partyId, creator_id: user.id, status: 'active' }, { onConflict: 'party_id,creator_id' })
+        .select('id')
+        .single();
+      if (cfErr) throw cfErr;
+
+      const { data: existing } = await supabase
+        .from('crowdfund_items')
+        .select('id')
+        .eq('crowdfund_id', cf.id)
+        .eq('item_id', item.id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error: upErr } = await supabase
+          .from('crowdfund_items')
+          .update({ quantity: qty, total_price: totalPrice, people_covered: pc })
+          .eq('id', existing.id);
+        if (upErr) throw upErr;
+      } else {
+        const { error: insErr } = await supabase.from('crowdfund_items').insert({
+          crowdfund_id: cf.id,
+          item_type: 'food',
+          item_id: item.id,
+          item_name: item.name,
+          quantity: qty,
+          people_covered: pc,
+          total_price: totalPrice,
+        });
+        if (insErr) throw insErr;
+      }
+      setSuccess(true);
+      setTimeout(onClose, 800);
+    } catch (e: any) {
+      setError(e.message || 'Erreur.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-neutral-800">
+        <button onClick={onClose} className="text-neutral-400 hover:text-white transition text-2xl leading-none">←</button>
+        <h2 className="text-white font-semibold text-lg">Ajouter à ma cagnotte</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {success && <p className="text-green-400 text-sm">Ajouté !</p>}
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Item</label>
+          <div className={disabledCls}>{item.name}</div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Quantité</label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Pour combien de personnes ?</label>
+          {ratio !== null ? (
+            <div className={disabledCls}>{qty > 0 ? Math.round(qty * ratio) : '—'} pers. (auto)</div>
+          ) : (
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={peopleCovered}
+              onChange={(e) => setPeopleCovered(e.target.value)}
+              className={inputCls}
+            />
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm text-neutral-400">Prix total (€)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Ex: 15.00"
+            autoFocus
+            className={inputCls}
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving || success}
+          className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
+        >
+          {saving ? 'Enregistrement…' : success ? '✅ Ajouté !' : 'Ajouter à ma cagnotte'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ============================
 // AddItemPopup
@@ -574,6 +728,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [contributeItem, setContributeItem] = useState<FoodItem | null>(null);
   const [editItem, setEditItem] = useState<FoodItem | null>(null);
+  const [crowdfundFoodItem, setCrowdfundFoodItem] = useState<FoodItem | null>(null);
 
   const loadGuestCount = useCallback(async () => {
     const { data: guests } = await supabase
@@ -677,8 +832,15 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                   <AvatarStack contributions={item.food_contributions} />
                 </div>
 
-                {/* Action button */}
-                <div className="flex-shrink-0">
+                {/* Action buttons */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => setCrowdfundFoodItem(item)}
+                    className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/20 rounded-lg transition"
+                    title="Ajouter à ma cagnotte"
+                  >
+                    <CrowdfundIcon className="w-4 h-4" />
+                  </button>
                   {showEdit ? (
                     <button
                       onClick={() => setEditItem(item)}
@@ -730,6 +892,15 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
           guestCount={guestCount}
           onClose={() => setEditItem(null)}
           onSaved={loadFoodItems}
+        />
+      )}
+
+      {crowdfundFoodItem && (
+        <AddFoodToCrowdfundPopup
+          item={crowdfundFoodItem}
+          partyId={partyId}
+          guestCount={guestCount}
+          onClose={() => setCrowdfundFoodItem(null)}
         />
       )}
     </div>

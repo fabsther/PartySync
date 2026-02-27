@@ -31,6 +31,7 @@ import { CarSharing } from './party-tabs/CarSharing';
 import { Equipment } from './party-tabs/Equipment';
 import { FoodBeverage } from './party-tabs/FoodBeverage';
 import { Posts } from './party-tabs/Posts';
+import { Crowdfunding, CrowdfundIcon } from './party-tabs/Crowdfunding';
 import { GuestCount } from './GuestCount';
 
 interface Party {
@@ -57,7 +58,7 @@ interface PartyDetailProps {
   initialTab?: Tab;
 }
 
-type Tab = 'guests' | 'carshare' | 'equipment' | 'food' | 'posts';
+type Tab = 'guests' | 'carshare' | 'equipment' | 'food' | 'posts' | 'crowdfund';
 
 export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialTab }: PartyDetailProps) {
   const [party, setParty] = useState<Party | null>(null);
@@ -659,6 +660,17 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               <UtensilsCrossed className="w-4 h-4" />
               <span>Food & Drinks</span>
             </button>
+            <button
+              onClick={() => setActiveTab('crowdfund')}
+              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
+                activeTab === 'crowdfund'
+                  ? 'text-orange-500 border-b-2 border-orange-500'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <CrowdfundIcon className="w-4 h-4" />
+              <span>Cagnotte</span>
+            </button>
           </div>
         </div>
 
@@ -681,6 +693,9 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
           {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}
           {activeTab === 'posts' && (
             <Posts partyId={partyId} creatorId={party.created_by} partyTitle={party.title} highlightPostId={initialPostId} />
+          )}
+          {activeTab === 'crowdfund' && (
+            <Crowdfunding partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />
           )}
         </div>
       </div>
