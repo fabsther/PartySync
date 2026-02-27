@@ -298,13 +298,13 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
     <div>
       <button
         onClick={onBack}
-        className="flex items-center space-x-2 text-neutral-400 hover:text-white mb-6 transition"
+        className="flex items-center space-x-2 text-neutral-400 hover:text-white mb-4 transition"
       >
         <ArrowLeft className="w-5 h-5" />
         <span>Back to Parties</span>
       </button>
 
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="-mx-4 sm:-mx-6 lg:-mx-8 bg-neutral-900 overflow-hidden">
 
         {/* Banner */}
         <div className="relative">
@@ -606,7 +606,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
           <div className="flex flex-wrap">
             <button
               onClick={() => setActiveTab('posts')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
                 activeTab === 'posts'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -617,7 +617,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             </button>
             <button
               onClick={() => setActiveTab('guests')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
                 activeTab === 'guests'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -628,7 +628,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             </button>
             <button
               onClick={() => setActiveTab('carshare')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
                 activeTab === 'carshare'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -639,7 +639,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             </button>
             <button
               onClick={() => setActiveTab('equipment')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
                 activeTab === 'equipment'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
@@ -650,7 +650,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             </button>
             <button
               onClick={() => setActiveTab('food')}
-              className={`flex items-center space-x-2 px-5 py-3.5 font-medium transition ${
+              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
                 activeTab === 'food'
                   ? 'text-orange-500 border-b-2 border-orange-500'
                   : 'text-neutral-400 hover:text-white'
