@@ -13,6 +13,7 @@ import { sendRemoteNotification } from './lib/remoteNotify';
 import { InstallPrompt } from './components/InstallPrompt';
 import { isIOS } from './lib/platform';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
+import { checkAndSendFoodReminders } from './lib/foodReminders';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 
@@ -231,6 +232,9 @@ function AppContent() {
         registerNotificationToken(user.id);
       }, 2000);
     }
+
+    // Rappels food 24h/1h avant la soirée
+    checkAndSendFoodReminders(user.id);
 
     // Ré-enregistrement immédiat si le SW détecte un changement de subscription
     // (pushsubscriptionchange sans config dispo au moment de l'événement)
