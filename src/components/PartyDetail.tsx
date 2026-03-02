@@ -22,12 +22,14 @@ import {
   X as XIcon,
   Pencil,
   Bell,
+  QrCode,
 } from 'lucide-react';
 import { downloadICS, getGoogleCalendarUrl } from '../lib/calendar';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { sendRemoteNotification } from '../lib/remoteNotify';
 import { uploadPartyMedia, deletePartyMedia, detectChatPlatform } from '../lib/uploadMedia';
+import { QRModal } from './QRModal';
 import { GuestList } from './party-tabs/GuestList';
 import { CarSharing } from './party-tabs/CarSharing';
 import { Equipment } from './party-tabs/Equipment';
@@ -78,6 +80,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
   const [chatDraft, setChatDraft] = useState('');
   const [savingChat, setSavingChat] = useState(false);
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+  const [showPartyQR, setShowPartyQR] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDraft, setEditDraft] = useState({ fixed_date: '', address: '', schedule: '', entry_instructions: '' });
   const [saving, setSaving] = useState(false);
@@ -533,13 +536,20 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
           )}
 
           {!party.cancelled_at && (
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <button
                 onClick={sharePartyInvite}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl transition text-sm font-medium"
               >
                 {copiedPartyLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
                 <span>{copiedPartyLink ? 'Lien copié !' : "Partager l'invitation"}</span>
+              </button>
+              <button
+                onClick={() => setShowPartyQR(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 rounded-xl transition text-sm"
+                title="Afficher le QR code d'invitation"
+              >
+                <QrCode className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -814,6 +824,20 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
           )}
         </div>
       </div>
+
+      {/* Party QR modal */}
+      {showPartyQR && (
+        <QRModal
+          url={
+            isCreator && inviteCode
+              ? `${window.location.origin}?invite=${inviteCode}&join_party=${party.id}`
+              : `${window.location.origin}?join_party=${party.id}`
+          }
+          title={`Invitation — ${party.title}`}
+          subtitle="Scanne pour rejoindre la soirée"
+          onClose={() => setShowPartyQR(false)}
+        />
+      )}
 
       {/* Edit modal */}
       {showEditModal && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { UserPlus, UserMinus, Users, Share2, Copy, Check } from 'lucide-react';
+import { UserPlus, UserMinus, Users, Share2, Copy, Check, QrCode } from 'lucide-react';
+import { QRModal } from './QRModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,6 +25,7 @@ export function SubscribersList() {
   const [addingFriend, setAddingFriend] = useState(false);
   const [confirmKickId, setConfirmKickId] = useState<string | null>(null);
   const [confirmUnsubId, setConfirmUnsubId] = useState<string | null>(null);
+  const [showQR, setShowQR] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -257,6 +259,13 @@ export function SubscribersList() {
                 className="flex-1 min-w-0 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white text-sm"
               />
               <button
+                onClick={() => setShowQR(true)}
+                className="shrink-0 px-3 py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 rounded-lg transition"
+                title="Afficher le QR code"
+              >
+                <QrCode className="w-5 h-5" />
+              </button>
+              <button
                 onClick={copyInviteLink}
                 className="shrink-0 px-3 sm:px-5 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2"
               >
@@ -421,6 +430,15 @@ export function SubscribersList() {
           </div>
         </div>
       </div>
+      {showQR && (
+        <QRModal
+          url={`${window.location.origin}?invite=${inviteCode}`}
+          title="Mon invitation PartySync"
+          subtitle="Scanne pour m'ajouter comme ami"
+          onClose={() => setShowQR(false)}
+        />
+      )}
+
       {(confirmKickId || confirmUnsubId) && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
