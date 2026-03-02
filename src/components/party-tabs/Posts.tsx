@@ -22,6 +22,9 @@ interface MentionableUser {
   avatar_url: string | null;
 }
 
+const EVERYONE_ID = '__everyone__';
+const EVERYONE_USER: MentionableUser = { id: EVERYONE_ID, displayName: 'everyone', avatar_url: null };
+
 interface PostsProps {
   partyId: string;
   creatorId: string;
@@ -91,7 +94,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
         seen.add(g.user_id);
       });
 
-      setMentionableUsers(users);
+      setMentionableUsers([EVERYONE_USER, ...users]);
     };
 
     loadMentionableUsers();
@@ -155,7 +158,8 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     setSubmitting(true);
     try {
       const content = newPost.trim();
-      const mentionedIds = [...mentionedUsers.keys()];
+      const hasEveryone = mentionedUsers.has(EVERYONE_ID);
+      const mentionedIds = [...mentionedUsers.keys()].filter(id => id !== EVERYONE_ID);
 
       const { data: insertedPost } = await supabase
         .from('party_posts')
@@ -189,9 +193,9 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
       (confirmedGuests || []).forEach((g) => recipientIds.add(g.user_id));
       if (creatorId !== user.id) recipientIds.add(creatorId);
 
-      const notifTitle = partyTitle
-        ? `Nouveau post — ${partyTitle}`
-        : 'Nouveau post sur la soirée';
+      const notifTitle = hasEveryone
+        ? (partyTitle ? `📣 @everyone — ${partyTitle}` : '📣 @everyone — Nouveau post')
+        : (partyTitle ? `Nouveau post — ${partyTitle}` : 'Nouveau post sur la soirée');
 
       const postId = insertedPost?.id;
       await Promise.allSettled(
@@ -250,11 +254,11 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
 
   const renderContent = (text: string) => {
     const parts = text.split(/(@\[[^\]]+\])/g);
-    return parts.map((part, i) =>
-      part.match(/^@\[/)
-        ? <span key={i} className="text-orange-400 font-medium">{part}</span>
-        : <span key={i}>{part}</span>
-    );
+    return parts.map((part, i) => {
+      if (!part.match(/^@\[/)) return <span key={i}>{part}</span>;
+      if (part === '@[everyone]') return <span key={i} className="text-violet-400 font-semibold">{part}</span>;
+      return <span key={i} className="text-orange-400 font-medium">{part}</span>;
+    });
   };
 
   const filteredMentions = mentionQuery !== null
@@ -292,14 +296,20 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                   onMouseDown={(e) => { e.preventDefault(); insertMention(u); }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-700 transition text-left"
                 >
-                  {u.avatar_url ? (
+                  {u.id === EVERYONE_ID ? (
+                    <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-violet-700 rounded-full flex items-center justify-center text-white text-base flex-shrink-0">
+                      📣
+                    </div>
+                  ) : u.avatar_url ? (
                     <img src={u.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
                   ) : (
                     <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
                       {u.displayName[0].toUpperCase()}
                     </div>
                   )}
-                  <span className="text-white text-sm">{u.displayName}</span>
+                  <span className={u.id === EVERYONE_ID ? 'text-violet-300 font-semibold text-sm' : 'text-white text-sm'}>
+                    @{u.displayName}
+                  </span>
                 </button>
               ))}
             </div>

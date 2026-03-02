@@ -20,6 +20,8 @@ import {
   ImagePlus,
   Smile,
   X as XIcon,
+  Pencil,
+  Bell,
 } from 'lucide-react';
 import { downloadICS, getGoogleCalendarUrl } from '../lib/calendar';
 import { supabase } from '../lib/supabase';
@@ -73,6 +75,13 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
   const [chatDraft, setChatDraft] = useState('');
   const [savingChat, setSavingChat] = useState(false);
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editDraft, setEditDraft] = useState({ fixed_date: '', address: '', schedule: '', entry_instructions: '' });
+  const [saving, setSaving] = useState(false);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState('');
+  const [notifying, setNotifying] = useState(false);
+  const [changedFields, setChangedFields] = useState<string[]>([]);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -267,6 +276,81 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
     setEditingChat(false);
   };
 
+  const openEditModal = () => {
+    if (!party) return;
+    setEditDraft({
+      fixed_date: party.fixed_date ? party.fixed_date.slice(0, 16) : '',
+      address: party.address || '',
+      schedule: party.schedule || '',
+      entry_instructions: party.entry_instructions || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const savePartyEdits = async () => {
+    if (!party) return;
+    setSaving(true);
+    try {
+      const changed: string[] = [];
+      const newDateIso = editDraft.fixed_date ? new Date(editDraft.fixed_date).toISOString() : null;
+      if (party.is_date_fixed && newDateIso !== party.fixed_date) changed.push('la date/heure');
+      if (editDraft.address !== (party.address || '')) changed.push('le lieu');
+      if (editDraft.schedule !== (party.schedule || '')) changed.push('le programme');
+      if (editDraft.entry_instructions !== (party.entry_instructions || '')) changed.push("les instructions d'entrée");
+
+      const updates: Partial<Party> = {
+        address: editDraft.address || null,
+        schedule: editDraft.schedule || null,
+        entry_instructions: editDraft.entry_instructions || null,
+        ...(party.is_date_fixed && editDraft.fixed_date ? { fixed_date: newDateIso } : {}),
+      };
+
+      await supabase.from('parties').update(updates).eq('id', partyId);
+      setParty(prev => prev ? { ...prev, ...updates } : null);
+      setChangedFields(changed);
+      setShowEditModal(false);
+      setNotifyMessage('');
+      setShowNotifyModal(true);
+    } catch (e) {
+      console.error('Error saving party edits:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sendUpdateNotification = async () => {
+    if (!party || !user) return;
+    setNotifying(true);
+    try {
+      const { data: guests } = await supabase
+        .from('party_guests')
+        .select('user_id')
+        .eq('party_id', partyId)
+        .eq('status', 'confirmed')
+        .neq('user_id', user.id);
+
+      const body = notifyMessage.trim() ||
+        (changedFields.length > 0 ? `Mis à jour : ${changedFields.join(', ')}` : 'Les infos de la soirée ont été mises à jour.');
+
+      await Promise.allSettled(
+        (guests || []).map(g =>
+          sendRemoteNotification(
+            g.user_id,
+            `📝 ${party.title} — Infos mises à jour`,
+            body,
+            { partyId, action: 'party_update' },
+            `/party/${partyId}`
+          )
+        )
+      );
+    } catch (e) {
+      console.error('Error notifying guests:', e);
+    } finally {
+      setNotifying(false);
+      setShowNotifyModal(false);
+    }
+  };
+
   const getCalendarEvent = () => {
     if (!party?.fixed_date) return null;
     return {
@@ -418,13 +502,22 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             </div>
 
             {isCreator && !party.cancelled_at && (
-              <button
-                onClick={openCancelModal}
-                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition flex-shrink-0"
-                title="Annuler la soirée"
-              >
-                <Ban className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={openEditModal}
+                  className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition"
+                  title="Modifier la soirée"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={openCancelModal}
+                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
+                  title="Annuler la soirée"
+                >
+                  <Ban className="w-5 h-5" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -699,6 +792,147 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
           )}
         </div>
       </div>
+
+      {/* Edit modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Pencil className="w-5 h-5 text-orange-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white">Modifier la soirée</h3>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="ml-auto p-1.5 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              {party?.is_date_fixed && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Date &amp; heure</label>
+                  <input
+                    type="datetime-local"
+                    value={editDraft.fixed_date}
+                    onChange={e => setEditDraft(d => ({ ...d, fixed_date: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white focus:outline-none focus:border-orange-500 text-sm"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">Lieu / adresse</label>
+                <input
+                  type="text"
+                  value={editDraft.address}
+                  onChange={e => setEditDraft(d => ({ ...d, address: e.target.value }))}
+                  placeholder="Adresse ou nom du lieu"
+                  className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">Programme</label>
+                <textarea
+                  value={editDraft.schedule}
+                  onChange={e => setEditDraft(d => ({ ...d, schedule: e.target.value }))}
+                  placeholder="Ex: 20h Apéro · 21h Dîner · 23h Dancefloor"
+                  rows={4}
+                  className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">Instructions d'entrée</label>
+                <textarea
+                  value={editDraft.entry_instructions}
+                  onChange={e => setEditDraft(d => ({ ...d, entry_instructions: e.target.value }))}
+                  placeholder="Ex: Sonner à l'interphone B12, 3ème étage…"
+                  rows={3}
+                  className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={saving}
+                className="flex-1 px-4 py-2.5 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition disabled:opacity-50 text-sm font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={savePartyEdits}
+                disabled={saving}
+                className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+              >
+                {saving ? (
+                  <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>Sauvegarde…</span></>
+                ) : (
+                  <><Check className="w-4 h-4" /><span>Sauvegarder</span></>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notify guests modal */}
+      {showNotifyModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Bell className="w-5 h-5 text-orange-400" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Notifier les invités ?</h3>
+            </div>
+
+            {changedFields.length > 0 && (
+              <p className="text-neutral-400 text-sm mb-4">
+                Modifications : <span className="text-white">{changedFields.join(', ')}</span>
+              </p>
+            )}
+
+            <div className="mb-5">
+              <label className="block text-sm text-neutral-500 mb-1.5">Message (optionnel)</label>
+              <textarea
+                value={notifyMessage}
+                onChange={e => setNotifyMessage(e.target.value)}
+                placeholder={changedFields.length > 0 ? `Mis à jour : ${changedFields.join(', ')}` : 'Les infos de la soirée ont été mises à jour.'}
+                rows={2}
+                maxLength={200}
+                className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowNotifyModal(false)}
+                disabled={notifying}
+                className="flex-1 px-4 py-2.5 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition disabled:opacity-50 text-sm font-medium"
+              >
+                Ignorer
+              </button>
+              <button
+                onClick={sendUpdateNotification}
+                disabled={notifying}
+                className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+              >
+                {notifying ? (
+                  <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>Envoi…</span></>
+                ) : (
+                  <><Bell className="w-4 h-4" /><span>Notifier tous</span></>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
