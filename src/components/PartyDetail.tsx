@@ -34,6 +34,7 @@ import { Equipment } from './party-tabs/Equipment';
 import { FoodBeverage } from './party-tabs/FoodBeverage';
 import { Posts } from './party-tabs/Posts';
 import { Crowdfunding, CrowdfundIcon } from './party-tabs/Crowdfunding';
+import { DateVoting } from './party-tabs/DateVoting';
 import { GuestCount } from './GuestCount';
 
 interface Party {
@@ -45,6 +46,8 @@ interface Party {
   entry_instructions: string;
   is_date_fixed: boolean;
   fixed_date: string | null;
+  date_options: string[] | null;
+  vote_deadline: string | null;
   created_by: string;
   cancelled_at: string | null;
   banner_url: string | null;
@@ -349,6 +352,10 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
       setNotifying(false);
       setShowNotifyModal(false);
     }
+  };
+
+  const handleVoteResolved = (winningDate: string) => {
+    setParty(prev => prev ? { ...prev, is_date_fixed: true, fixed_date: winningDate } : null);
   };
 
   const getCalendarEvent = () => {
@@ -694,6 +701,21 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               )}
             </div>
           </div>
+
+          {/* Date voting — shown when date is not yet fixed */}
+          {!party.is_date_fixed && !party.cancelled_at &&
+           party.date_options && party.date_options.length >= 2 &&
+           party.vote_deadline && (
+            <div className="mt-4">
+              <DateVoting
+                partyId={partyId}
+                partyTitle={party.title}
+                dateOptions={party.date_options}
+                voteDeadline={party.vote_deadline}
+                onVoteResolved={handleVoteResolved}
+              />
+            </div>
+          )}
         </div>
 
         <div className="border-b border-neutral-800">

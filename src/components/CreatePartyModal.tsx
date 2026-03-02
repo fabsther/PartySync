@@ -23,6 +23,8 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
     fixed_date: '',
     chat_url: '',
   });
+  const [dateOptions, setDateOptions] = useState(['', '']);
+  const [voteDeadline, setVoteDeadline] = useState('');
 
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
@@ -56,12 +58,18 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
       if (bannerFile) banner_url = await uploadPartyMedia(bannerFile, user.id, 'banner');
       if (iconFile) icon_url = await uploadPartyMedia(iconFile, user.id, 'icon');
 
+      const validDateOptions = !formData.is_date_fixed
+        ? dateOptions.filter(d => d.trim()).map(d => new Date(d).toISOString())
+        : null;
+
       const { data: party, error: partyError } = await supabase
         .from('parties')
         .insert({
           ...formData,
           created_by: user.id,
           fixed_date: formData.is_date_fixed && formData.fixed_date ? formData.fixed_date : null,
+          date_options: validDateOptions,
+          vote_deadline: !formData.is_date_fixed && voteDeadline ? new Date(voteDeadline).toISOString() : null,
           chat_url: formData.chat_url.trim() || null,
           banner_url,
           icon_url,
@@ -214,7 +222,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             </label>
           </div>
 
-          {formData.is_date_fixed && (
+          {formData.is_date_fixed ? (
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">Party Date & Time</label>
               <input
@@ -223,6 +231,59 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
                 onChange={(e) => setFormData({ ...formData, fixed_date: e.target.value })}
                 className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
               />
+            </div>
+          ) : (
+            <div className="space-y-4 bg-neutral-800/50 border border-neutral-700 rounded-xl p-4">
+              <p className="text-sm text-neutral-400 font-medium">🗳️ Options de dates pour le vote</p>
+
+              {dateOptions.map((opt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-sm text-neutral-500 w-5 flex-shrink-0">{i + 1}.</span>
+                  <input
+                    type="datetime-local"
+                    value={opt}
+                    onChange={(e) => {
+                      const next = [...dateOptions];
+                      next[i] = e.target.value;
+                      setDateOptions(next);
+                    }}
+                    className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition text-sm"
+                  />
+                  {i === 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setDateOptions(['', ''])}
+                      className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                      title="Supprimer l'option 3"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {dateOptions.length === 2 && (
+                <button
+                  type="button"
+                  onClick={() => setDateOptions([...dateOptions, ''])}
+                  className="text-sm text-orange-400 hover:text-orange-300 transition"
+                >
+                  + Ajouter une 3ème option
+                </button>
+              )}
+
+              <div className="pt-1">
+                <label className="block text-sm font-medium text-neutral-400 mb-2">
+                  Deadline du vote
+                  <span className="text-neutral-600 font-normal ml-1">(date limite pour voter)</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={voteDeadline}
+                  onChange={(e) => setVoteDeadline(e.target.value)}
+                  className="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition text-sm"
+                />
+              </div>
             </div>
           )}
 
