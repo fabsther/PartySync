@@ -157,6 +157,7 @@
   "no_thanks": "Нет, спасибо",
   "loading_guests": "Загрузка гостей…",
   "ping_guest_tooltip": "Напомнить гостю",
+  "entry_locked": "Доступно с {{date}}",
   "guests_present_one": "{{count}} гость придёт",
   "guests_present_few": "{{count}} гостя придут",
   "guests_present_other": "{{count}} гостей придут"

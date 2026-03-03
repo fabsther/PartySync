@@ -154,6 +154,7 @@
   "no_thanks": "No thanks",
   "loading_guests": "Loading guests…",
   "ping_guest_tooltip": "Nudge this guest",
+  "entry_locked": "Available from {{date}}",
   "guests_present_one": "{{count}} guest attending",
   "guests_present_other": "{{count}} guests attending"
 }

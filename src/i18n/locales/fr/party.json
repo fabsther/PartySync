@@ -154,6 +154,7 @@
   "no_thanks": "Non merci",
   "loading_guests": "Chargement des invités…",
   "ping_guest_tooltip": "Relancer cet invité",
+  "entry_locked": "Disponible à partir de {{date}}",
   "guests_present_one": "{{count}} invité présent",
   "guests_present_other": "{{count}} invités présents"
 }

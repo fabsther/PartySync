@@ -154,6 +154,7 @@
   "no_thanks": "No, gracias",
   "loading_guests": "Cargando invitados…",
   "ping_guest_tooltip": "Recordar a este invitado",
+  "entry_locked": "Disponible a partir de {{date}}",
   "guests_present_one": "{{count}} invitado presente",
   "guests_present_other": "{{count}} invitados presentes"
 }

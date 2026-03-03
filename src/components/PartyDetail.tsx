@@ -708,15 +708,32 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                 </div>
               )}
 
-              {party.entry_instructions && (
-                <div className="flex items-start">
-                  <DoorOpen className="w-5 h-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="text-sm text-neutral-500 mb-1">{t('entry_label')}</div>
-                    <div className="text-white whitespace-pre-line">{party.entry_instructions}</div>
+              {party.entry_instructions && (() => {
+                const isOrganizer = party.created_by === user?.id;
+                const unlockTime = party.is_date_fixed && party.fixed_date
+                  ? new Date(new Date(party.fixed_date).getTime() - 8 * 60 * 60 * 1000)
+                  : null;
+                const isUnlocked = isOrganizer || !unlockTime || new Date() >= unlockTime;
+                return (
+                  <div className="flex items-start">
+                    <DoorOpen className="w-5 h-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="text-sm text-neutral-500 mb-1">{t('entry_label')}</div>
+                      {isUnlocked ? (
+                        <div className="text-white whitespace-pre-line">{party.entry_instructions}</div>
+                      ) : (
+                        <div className="text-neutral-500 text-sm italic">
+                          {t('entry_locked', {
+                            date: unlockTime!.toLocaleString(i18n.language, {
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                            }),
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
 
