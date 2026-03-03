@@ -23,6 +23,7 @@ import {
   Pencil,
   Bell,
   QrCode,
+  DoorOpen,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { downloadICS, getGoogleCalendarUrl } from '../lib/calendar';
@@ -708,9 +709,12 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               )}
 
               {party.entry_instructions && (
-                <div>
-                  <div className="text-sm text-neutral-500 mb-1">{t('entry_label')}</div>
-                  <div className="text-white whitespace-pre-line">{party.entry_instructions}</div>
+                <div className="flex items-start">
+                  <DoorOpen className="w-5 h-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm text-neutral-500 mb-1">{t('entry_label')}</div>
+                    <div className="text-white whitespace-pre-line">{party.entry_instructions}</div>
+                  </div>
                 </div>
               )}
             </div>
