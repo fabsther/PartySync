@@ -13,7 +13,7 @@
   "saving": "Enregistrement…",
   "account_info": "Informations du compte",
   "user_id": "ID utilisateur",
-  "notifications": "Notifications",
+  "notifications": "Paramètres",
   "notif_active": "Les notifications push sont activées.",
   "notif_inactive": "Active les notifications pour être averti en temps réel.",
   "notif_denied": "Les notifications sont bloquées. Autorise-les dans les paramètres du site.",
