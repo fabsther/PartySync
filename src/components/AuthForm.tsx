@@ -46,7 +46,10 @@ export function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex items-center justify-center px-4">
+    <div className="relative min-h-screen bg-neutral-950 flex items-center justify-center px-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSelector compact />
+      </div>
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-4">
@@ -56,10 +59,6 @@ export function AuthForm() {
           </div>
           <h2 className="text-4xl font-bold text-white mb-2">PartySync</h2>
           <p className="text-neutral-400">{t('tagline')}</p>
-        </div>
-
-        <div className="flex justify-center">
-          <LanguageSelector compact />
         </div>
 
         {!isForgotPassword && (

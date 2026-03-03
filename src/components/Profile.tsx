@@ -328,12 +328,6 @@ export function Profile() {
         </div>
       </div>
 
-      {/* Language */}
-      <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">{t('language')}</h3>
-        <LanguageSelector />
-      </div>
-
       {notifStatus !== 'unsupported' && (
         <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-white mb-1">{t('notifications')}</h3>
@@ -370,6 +364,11 @@ export function Profile() {
                 : t('notif_disabled')}
             </span>
           </button>
+
+          <div className="mt-4 pt-4 border-t border-neutral-800 flex items-center justify-between">
+            <span className="text-sm font-medium text-neutral-300">{t('language_label')}</span>
+            <LanguageSelector />
+          </div>
         </div>
       )}
 

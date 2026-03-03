@@ -1,7 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { PartyPopper, Users, CalendarDays, Menu, X, User, Download } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
-import { LanguageSelector } from '../components/LanguageSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useTranslation } from 'react-i18next';
@@ -134,9 +133,6 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                   <span>{t('install_app')}</span>
                 </button>
               )}
-              <div className="pt-2 pb-1 px-1">
-                <LanguageSelector />
-              </div>
             </div>
           </div>
         </>
