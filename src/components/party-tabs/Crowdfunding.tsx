@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ExternalLink, Trash2, Check, X as XIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
@@ -114,6 +115,7 @@ interface ParticipatePopupProps {
 }
 
 function ParticipatePopup({ crowdfund, onClose, onSaved }: ParticipatePopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
@@ -128,7 +130,7 @@ function ParticipatePopup({ crowdfund, onClose, onSaved }: ParticipatePopupProps
   const handleSave = async () => {
     if (!user) return;
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) { setError('Montant invalide.'); return; }
+    if (!amt || amt <= 0) { setError(t('amount_invalid')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -142,26 +144,26 @@ function ParticipatePopup({ crowdfund, onClose, onSaved }: ParticipatePopupProps
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.message || 'Erreur.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Popup title={`Participer à la cagnotte`} onClose={onClose}>
+    <Popup title={t('participate_title')} onClose={onClose}>
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
       <div className="bg-neutral-800 rounded-xl p-4 space-y-2">
-        <p className="text-sm text-neutral-400">Total cagnotte</p>
+        <p className="text-sm text-neutral-400">{t('total_crowdfund')}</p>
         <p className="text-white text-2xl font-bold">{total.toFixed(2)} €</p>
         {remaining < total && (
-          <p className="text-sm text-orange-400">Reste à financer : {remaining.toFixed(2)} €</p>
+          <p className="text-sm text-orange-400">{t('remaining_to_fund', { amount: remaining.toFixed(2) })}</p>
         )}
       </div>
 
       <div className="space-y-1">
-        <label className="block text-sm text-neutral-400">Combien souhaitez-vous contribuer ?</label>
+        <label className="block text-sm text-neutral-400">{t('how_much_contribute')}</label>
         <input
           type="number"
           min="0.01"
@@ -179,7 +181,7 @@ function ParticipatePopup({ crowdfund, onClose, onSaved }: ParticipatePopupProps
         disabled={saving}
         className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
       >
-        {saving ? 'Enregistrement…' : 'Confirmer ma participation'}
+        {saving ? t('saving') : t('confirm_participation')}
       </button>
     </Popup>
   );
@@ -198,6 +200,7 @@ interface ParticipantActionProps {
 }
 
 function ParticipantActionPopup({ participant, crowdfund, partyId, partyTitle, onClose, onSaved }: ParticipantActionProps) {
+  const { t } = useTranslation('logistics');
   const [saving, setSaving] = useState(false);
 
   const itemNames = crowdfund.crowdfund_items.map((i) => i.item_name).join(', ');
@@ -221,8 +224,8 @@ function ParticipantActionPopup({ participant, crowdfund, partyId, partyTitle, o
     try {
       await sendRemoteNotification(
         participant.participant_id,
-        `💰 Rappel cagnotte — ${partyTitle}`,
-        `Tu as promis ${participant.amount}€ — items : ${itemNames}`,
+        t('notif_crowdfund_remind_title', { partyTitle }),
+        t('notif_crowdfund_remind_body', { amount: participant.amount, items: itemNames }),
         { partyId, action: 'crowdfund_reminder', crowdfundId: crowdfund.id },
         `/party/${partyId}?tab=crowdfund`
       );
@@ -242,9 +245,9 @@ function ParticipantActionPopup({ participant, crowdfund, partyId, partyTitle, o
           </button>
         </div>
         <p className="text-neutral-400 text-sm">
-          Participation : <span className="text-white font-medium">{participant.amount.toFixed(2)} €</span>{' '}
+          {t('my_participation')} : <span className="text-white font-medium">{participant.amount.toFixed(2)} €</span>{' '}
           <span className={`text-xs px-2 py-0.5 rounded-full ${participant.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-            {participant.status === 'confirmed' ? 'Confirmé' : 'En attente'}
+            {participant.status === 'confirmed' ? t('confirmed') : t('pending')}
           </span>
         </p>
 
@@ -255,7 +258,7 @@ function ParticipantActionPopup({ participant, crowdfund, partyId, partyTitle, o
             className="w-full py-3 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Check className="w-4 h-4" />
-            Paiement reçu
+            {t('payment_received')}
           </button>
         )}
 
@@ -264,7 +267,7 @@ function ParticipantActionPopup({ participant, crowdfund, partyId, partyTitle, o
           disabled={saving}
           className="w-full py-3 bg-neutral-800 text-orange-400 hover:bg-neutral-700 rounded-xl font-medium transition disabled:opacity-50"
         >
-          🔔 Rappeler le paiement
+          {t('remind_payment')}
         </button>
       </div>
     </div>
@@ -283,6 +286,7 @@ interface CrowdfundDetailPopupProps {
 }
 
 function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdated }: CrowdfundDetailPopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const isCreator = user?.id === crowdfund.creator_id;
   const funded = isFunded(crowdfund);
@@ -348,24 +352,23 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
   };
 
   const deleteItem = async (itemId: string) => {
-    if (!window.confirm('Supprimer cet item de la cagnotte ?')) return;
+    if (!window.confirm(t('delete_cf_item_confirm'))) return;
     await supabase.from('crowdfund_items').delete().eq('id', itemId);
     onUpdated();
   };
 
   const cancelCrowdfund = async () => {
-    if (!window.confirm('Annuler cette cagnotte ? Les participants seront notifiés.')) return;
+    if (!window.confirm(t('cancel_cf_confirm'))) return;
     setCancelling(true);
     try {
       await supabase.from('crowdfunds').update({ status: 'cancelled' }).eq('id', crowdfund.id);
-      // Notify all participants
       const itemNames = crowdfund.crowdfund_items.map((i) => i.item_name).join(', ');
       await Promise.allSettled(
         crowdfund.crowdfund_participations.map((p) =>
           sendRemoteNotification(
             p.participant_id,
-            `❌ Cagnotte annulée — ${partyTitle}`,
-            `La cagnotte pour "${itemNames}" a été annulée.`,
+            t('notif_crowdfund_cancelled_title', { partyTitle }),
+            t('notif_crowdfund_cancelled_body', { items: itemNames }),
             { partyId, action: 'crowdfund_cancelled', crowdfundId: crowdfund.id },
             `/party/${partyId}?tab=crowdfund`
           )
@@ -379,14 +382,14 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
   };
 
   return (
-    <Popup title={isCreator ? 'Ma cagnotte' : `Cagnotte de ${displayName(crowdfund.profiles)}`} onClose={onClose}>
+    <Popup title={isCreator ? t('my_crowdfund') : t('crowdfund_of', { name: displayName(crowdfund.profiles) })} onClose={onClose}>
       {/* Status badges */}
       <div className="flex flex-wrap gap-2">
         {funded && (
-          <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">✅ Financé</span>
+          <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-medium">{t('funded_badge')}</span>
         )}
         {crowdfund.status === 'cancelled' && (
-          <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-medium">❌ Annulé</span>
+          <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-medium">{t('cancelled_badge')}</span>
         )}
       </div>
 
@@ -394,7 +397,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
       {total > 0 && (
         <div className="bg-neutral-800 rounded-xl p-4 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Collecté (confirmé)</span>
+            <span className="text-neutral-400">{t('collected_label')}</span>
             <span className="text-white font-semibold">{confirmedAmt.toFixed(2)} / {total.toFixed(2)} €</span>
           </div>
           <div className="w-full bg-neutral-700 rounded-full h-2">
@@ -409,7 +412,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
       {/* Participation link */}
       {isCreator ? (
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Lien de participation (Leetchi, PayPal, etc.)</label>
+          <label className="block text-sm text-neutral-400">{t('participation_link_label')}</label>
           <div className="flex gap-2">
             <input
               type="url"
@@ -435,7 +438,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
           className="flex items-center gap-2 px-4 py-3 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl transition text-sm font-medium"
         >
           <ExternalLink className="w-4 h-4" />
-          Lien de participation
+          {t('crowdfund_link')}
         </a>
       ) : null}
 
@@ -445,18 +448,18 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
           onClick={() => setShowParticipate(true)}
           className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition"
         >
-          💰 Participer
+          {t('participate_btn')}
         </button>
       )}
 
       {/* My participation info */}
       {myParticipation && (
         <div className="bg-neutral-800 rounded-xl p-4 flex items-center justify-between">
-          <span className="text-neutral-400 text-sm">Ma participation</span>
+          <span className="text-neutral-400 text-sm">{t('my_participation')}</span>
           <div className="flex items-center gap-2">
             <span className="text-white font-semibold">{myParticipation.amount.toFixed(2)} €</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${myParticipation.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-              {myParticipation.status === 'confirmed' ? 'Confirmé' : 'En attente'}
+              {myParticipation.status === 'confirmed' ? t('confirmed') : t('pending')}
             </span>
           </div>
         </div>
@@ -464,9 +467,9 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
 
       {/* Items list */}
       <div className="space-y-2">
-        <h3 className="text-sm text-neutral-400 font-medium">Items</h3>
+        <h3 className="text-sm text-neutral-400 font-medium">{t('items_label')}</h3>
         {crowdfund.crowdfund_items.length === 0 ? (
-          <p className="text-neutral-500 text-sm py-4 text-center">Aucun item</p>
+          <p className="text-neutral-500 text-sm py-4 text-center">{t('no_items_cf')}</p>
         ) : (
           crowdfund.crowdfund_items.map((item) => {
             const draft = editingItems.get(item.id);
@@ -508,7 +511,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
                 {draft ? (
                   <div className="flex gap-2">
                     <div className="flex-1 space-y-1">
-                      <label className="text-xs text-neutral-500">Quantité</label>
+                      <label className="text-xs text-neutral-500">{t('quantity')}</label>
                       <input
                         type="number"
                         min="0.01"
@@ -523,7 +526,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
                       />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <label className="text-xs text-neutral-500">Prix total (€)</label>
+                      <label className="text-xs text-neutral-500">{t('total_price')} (€)</label>
                       <input
                         type="number"
                         min="0"
@@ -540,11 +543,11 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
                   </div>
                 ) : (
                   <div className="flex gap-4 text-sm text-neutral-400">
-                    <span>Qté : <span className="text-white">{item.quantity}</span></span>
+                    <span>{t('qty_label')} : <span className="text-white">{item.quantity}</span></span>
                     {item.item_type === 'food' && item.people_covered > 0 && (
-                      <span>Pour : <span className="text-white">{item.people_covered} pers.</span></span>
+                      <span>{t('for_label')} : <span className="text-white">{item.people_covered} {t('pers_label')}</span></span>
                     )}
-                    <span>Prix : <span className="text-orange-400 font-semibold">{item.total_price.toFixed(2)} €</span></span>
+                    <span>{t('price_label')} : <span className="text-orange-400 font-semibold">{item.total_price.toFixed(2)} €</span></span>
                   </div>
                 )}
               </div>
@@ -555,9 +558,9 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
 
       {/* Participants */}
       <div className="space-y-2">
-        <h3 className="text-sm text-neutral-400 font-medium">Participants ({crowdfund.crowdfund_participations.length})</h3>
+        <h3 className="text-sm text-neutral-400 font-medium">{t('participants_count_label', { count: crowdfund.crowdfund_participations.length })}</h3>
         {crowdfund.crowdfund_participations.length === 0 ? (
-          <p className="text-neutral-500 text-sm py-2 text-center">Aucun participant pour l'instant</p>
+          <p className="text-neutral-500 text-sm py-2 text-center">{t('no_participants_yet')}</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {crowdfund.crowdfund_participations.map((p) => (
@@ -588,7 +591,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
           disabled={cancelling}
           className="w-full py-3 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl font-medium transition disabled:opacity-50"
         >
-          {cancelling ? 'Annulation…' : 'Annuler la cagnotte'}
+          {cancelling ? t('cancelling_cf') : t('cancel_crowdfund_btn')}
         </button>
       )}
 
@@ -619,6 +622,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
 // Main component
 // ============================
 export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [crowdfunds, setCrowdfunds] = useState<Crowdfund[]>([]);
   const [loading, setLoading] = useState(true);
@@ -655,7 +659,6 @@ export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingPro
 
   const handleUpdated = async () => {
     await loadCrowdfunds();
-    // Refresh selected crowdfund from updated list
     if (selectedCrowdfund) {
       const fresh = await supabase
         .from('crowdfunds')
@@ -685,12 +688,10 @@ export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingPro
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-neutral-400">
-        Crée une cagnotte en ajoutant des items depuis l'onglet Équipement ou Food &amp; Drinks.
-      </p>
+      <p className="text-sm text-neutral-400">{t('crowdfund_hint')}</p>
 
       {crowdfunds.length === 0 ? (
-        <p className="text-neutral-500 text-center py-12">Aucune cagnotte pour cette soirée</p>
+        <p className="text-neutral-500 text-center py-12">{t('no_crowdfunds')}</p>
       ) : (
         <>
           {activeCrowdfunds.map((cf) => {
@@ -717,10 +718,10 @@ export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingPro
                       {displayName(cf.profiles).charAt(0).toUpperCase()}
                     </div>
                     <span className="text-white font-medium truncate">
-                      {cf.creator_id === user?.id ? 'Ma cagnotte' : displayName(cf.profiles)}
+                      {cf.creator_id === user?.id ? t('my_crowdfund') : displayName(cf.profiles)}
                     </span>
                     {funded && (
-                      <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full flex-shrink-0">✅ Financé</span>
+                      <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full flex-shrink-0">{t('funded_badge')}</span>
                     )}
                   </div>
                   <div className="text-sm text-orange-400 font-semibold flex-shrink-0">
@@ -764,7 +765,7 @@ export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingPro
 
           {cancelledCrowdfunds.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-neutral-500 uppercase tracking-wide">Annulées</p>
+              <p className="text-xs text-neutral-500 uppercase tracking-wide">{t('cancelled_section_label')}</p>
               {cancelledCrowdfunds.map((cf) => (
                 <button
                   key={cf.id}
@@ -779,7 +780,7 @@ export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingPro
                       {displayName(cf.profiles).charAt(0).toUpperCase()}
                     </div>
                     <span className="text-neutral-400 truncate">{displayName(cf.profiles)}</span>
-                    <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">❌ Annulé</span>
+                    <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full">{t('cancelled_badge')}</span>
                   </div>
                 </button>
               ))}

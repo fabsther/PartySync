@@ -88,6 +88,8 @@ export function useUserNotifications(userId?: string) {
 
     console.log('[Realtime] Setting up subscription for user:', userId);
     
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+
     const channel = supabase
       .channel(`notifications-${userId}`)
       .on(
@@ -97,14 +99,11 @@ export function useUserNotifications(userId?: string) {
           console.log('[Realtime] Received payload:', payload);
           const n = payload.new as AppNotification;
 
-          console.log('[Realtime] Adding notification:', n);
           setItems(prev => {
-            // Éviter les doublons
             if (prev.some(p => p.id === n.id)) return prev;
             return [n, ...prev];
           });
-          
-          // Afficher une notification système si l'app n'est pas au premier plan
+
           if (document.hidden) {
             sendLocalNotification(n.title, n.message, n.metadata);
           }
@@ -112,37 +111,17 @@ export function useUserNotifications(userId?: string) {
       )
       .subscribe((status, err) => {
         console.log('[Realtime] Subscription status:', status, err || '');
+        if (status === 'CHANNEL_ERROR') {
+          // Realtime unavailable — poll every 60s as conservative fallback
+          if (!fallbackInterval) {
+            fallbackInterval = setInterval(() => fetchPage(), 60000);
+          }
+        }
       });
 
-    // Polling de secours toutes les 10 secondes
-    const pollInterval = setInterval(async () => {
-      const { data } = await supabase
-        .from('notifications')
-        .select('id, user_id, title, message, metadata, read, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      
-      if (data && data.length > 0) {
-        setItems(prev => {
-          const newItems = data.filter((n: any) => !prev.some(p => p.id === n.id));
-          if (newItems.length > 0) {
-            console.log('[Polling] Found new notifications:', newItems.length);
-            // Notification système pour les nouvelles
-            if (document.hidden && newItems.length > 0) {
-              const latest = newItems[0] as AppNotification;
-              sendLocalNotification(latest.title, latest.message, latest.metadata);
-            }
-            return [...newItems, ...prev] as AppNotification[];
-          }
-          return prev;
-        });
-      }
-    }, 10000);
-
-    return () => { 
+    return () => {
       supabase.removeChannel(channel);
-      clearInterval(pollInterval);
+      if (fallbackInterval) clearInterval(fallbackInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);

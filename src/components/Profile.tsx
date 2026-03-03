@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { User, Mail, MapPin, Save, Loader, Camera, X, LogOut, Bell, BellOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAvatarMedia, deletePartyMedia } from '../lib/uploadMedia';
 import { registerNotificationToken, unregisterPushSubscription, checkNotificationSupport } from '../lib/notifications';
+import { LanguageSelector } from './LanguageSelector';
 
 type NotifStatus = 'active' | 'inactive' | 'denied' | 'unsupported';
 
 export function Profile() {
   const { user, signOut } = useAuth();
+  const { t } = useTranslation('profile');
 
   const handleSignOut = async () => {
     try {
@@ -34,7 +37,7 @@ export function Profile() {
   const handleNotifToggle = async () => {
     if (!user || notifLoading) return;
     if (notifStatus === 'denied') {
-      alert('Les notifications sont bloquées par le navigateur.\nVa dans les paramètres du site (icône 🔒 dans la barre d\'adresse) pour les autoriser.');
+      alert(t('notif_blocked_alert'));
       return;
     }
     setNotifLoading(true);
@@ -101,21 +104,19 @@ export function Profile() {
     setAvatarError('');
 
     if (!file.type.startsWith('image/')) {
-      setAvatarError('Seules les images sont acceptées');
+      setAvatarError(t('avatar_images_only'));
       e.target.value = '';
       return;
     }
 
     setUploadingAvatar(true);
     try {
-      // Delete old avatar if it's hosted on our storage
       if (formData.avatar_url && formData.avatar_url.includes('party-media')) {
         await deletePartyMedia(formData.avatar_url).catch(() => {});
       }
 
       const url = await uploadAvatarMedia(file, user.id);
 
-      // Save to DB immediately
       const { error } = await supabase
         .from('profiles')
         .update({ avatar_url: url, updated_at: new Date().toISOString() })
@@ -124,7 +125,7 @@ export function Profile() {
 
       setFormData(prev => ({ ...prev, avatar_url: url }));
     } catch (err: any) {
-      setAvatarError(err.message || 'Échec de l\'upload');
+      setAvatarError(err.message || t('avatar_upload_failed'));
     } finally {
       setUploadingAvatar(false);
       e.target.value = '';
@@ -145,7 +146,7 @@ export function Profile() {
       if (error) throw error;
       setFormData(prev => ({ ...prev, avatar_url: '' }));
     } catch (err: any) {
-      setAvatarError(err.message || 'Échec de la suppression');
+      setAvatarError(err.message || t('avatar_delete_failed'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -168,10 +169,10 @@ export function Profile() {
 
       if (error) throw error;
 
-      alert('Profile updated successfully!');
+      alert(t('profile_updated'));
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      alert(t('profile_update_failed'));
     } finally {
       setSaving(false);
     }
@@ -195,8 +196,8 @@ export function Profile() {
             <User className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">My Profile</h1>
-            <p className="text-neutral-400 text-sm">Manage your personal information</p>
+            <h1 className="text-2xl font-bold text-white">{t('my_profile')}</h1>
+            <p className="text-neutral-400 text-sm">{t('manage_info')}</p>
           </div>
         </div>
 
@@ -218,7 +219,6 @@ export function Profile() {
                   {initials}
                 </div>
               )}
-              {/* Overlay on hover */}
               <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                 {uploadingAvatar
                   ? <Loader className="w-6 h-6 text-white animate-spin" />
@@ -227,20 +227,19 @@ export function Profile() {
               </div>
             </div>
 
-            {/* Remove button */}
             {formData.avatar_url && !uploadingAvatar && (
               <button
                 type="button"
                 onClick={removeAvatar}
                 className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition"
-                title="Supprimer l'avatar"
+                title={t('remove_avatar')}
               >
                 <X className="w-3.5 h-3.5 text-white" />
               </button>
             )}
           </div>
 
-          <p className="text-xs text-neutral-500 mt-2">Clique pour changer · auto-redimensionné</p>
+          <p className="text-xs text-neutral-500 mt-2">{t('avatar_click_change')}</p>
           {avatarError && <p className="text-xs text-red-400 mt-1">{avatarError}</p>}
 
           <input
@@ -256,7 +255,7 @@ export function Profile() {
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
               <Mail className="w-4 h-4 inline mr-2" />
-              Email Address
+              {t('email_address')}
             </label>
             <input
               type="email"
@@ -264,41 +263,37 @@ export function Profile() {
               disabled
               className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-neutral-500 cursor-not-allowed"
             />
-            <p className="text-xs text-neutral-500 mt-1">Email cannot be changed</p>
+            <p className="text-xs text-neutral-500 mt-1">{t('email_cannot_change')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
               <User className="w-4 h-4 inline mr-2" />
-              Full Name
+              {t('full_name')}
             </label>
             <input
               type="text"
               value={formData.full_name}
               onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-              placeholder="Enter your full name"
+              placeholder={t('full_name_placeholder')}
               className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
             />
-            <p className="text-xs text-neutral-500 mt-1">
-              This is how other users will see your name
-            </p>
+            <p className="text-xs text-neutral-500 mt-1">{t('full_name_hint')}</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
               <MapPin className="w-4 h-4 inline mr-2" />
-              Default Location
+              {t('default_location')}
             </label>
             <input
               type="text"
               value={formData.profile_location}
               onChange={(e) => setFormData({ ...formData, profile_location: e.target.value })}
-              placeholder="e.g., New York, NY"
+              placeholder={t('default_location_placeholder')}
               className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
             />
-            <p className="text-xs text-neutral-500 mt-1">
-              Used to auto-fill location when requesting rides
-            </p>
+            <p className="text-xs text-neutral-500 mt-1">{t('default_location_hint')}</p>
           </div>
 
           <div className="pt-4 border-t border-neutral-800">
@@ -310,12 +305,12 @@ export function Profile() {
               {saving ? (
                 <>
                   <Loader className="w-5 h-5 animate-spin" />
-                  <span>Saving...</span>
+                  <span>{t('saving')}</span>
                 </>
               ) : (
                 <>
                   <Save className="w-5 h-5" />
-                  <span>Save Changes</span>
+                  <span>{t('save_changes')}</span>
                 </>
               )}
             </button>
@@ -324,22 +319,28 @@ export function Profile() {
       </div>
 
       <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Account Information</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">{t('account_info')}</h3>
         <div className="space-y-3 text-sm">
           <div>
-            <div className="text-neutral-400 mb-1">User ID</div>
+            <div className="text-neutral-400 mb-1">{t('user_id')}</div>
             <div className="text-neutral-300 font-mono text-xs break-all">{user?.id}</div>
           </div>
         </div>
       </div>
 
+      {/* Language */}
+      <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-4">{t('language')}</h3>
+        <LanguageSelector />
+      </div>
+
       {notifStatus !== 'unsupported' && (
         <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-1">Notifications</h3>
+          <h3 className="text-lg font-semibold text-white mb-1">{t('notifications')}</h3>
           <p className="text-neutral-400 text-sm mb-4">
-            {notifStatus === 'active' && 'Les notifications push sont activées.'}
-            {notifStatus === 'inactive' && 'Active les notifications pour être averti en temps réel.'}
-            {notifStatus === 'denied' && 'Les notifications sont bloquées. Autorise-les dans les paramètres du site.'}
+            {notifStatus === 'active' && t('notif_active')}
+            {notifStatus === 'inactive' && t('notif_inactive')}
+            {notifStatus === 'denied' && t('notif_denied')}
           </p>
           <button
             onClick={handleNotifToggle}
@@ -361,12 +362,12 @@ export function Profile() {
             )}
             <span>
               {notifLoading
-                ? 'En cours...'
+                ? t('notif_loading')
                 : notifStatus === 'active'
-                ? 'Notifications activées'
+                ? t('notif_enabled')
                 : notifStatus === 'denied'
-                ? 'Notifications bloquées'
-                : 'Notifications désactivées'}
+                ? t('notif_blocked')
+                : t('notif_disabled')}
             </span>
           </button>
         </div>
@@ -378,7 +379,7 @@ export function Profile() {
           className="w-full flex items-center justify-center space-x-2 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/30 rounded-xl transition"
         >
           <LogOut className="w-5 h-5" />
-          <span className="font-medium">Sign Out</span>
+          <span className="font-medium">{t('sign_out')}</span>
         </button>
       </div>
     </div>

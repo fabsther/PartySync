@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { X, Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { QRCodeCanvas } from 'qrcode.react';
 
 interface QRModalProps {
@@ -10,6 +11,7 @@ interface QRModalProps {
 }
 
 export function QRModal({ url, title, subtitle, onClose }: QRModalProps) {
+  const { t } = useTranslation('common');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const downloadQR = () => {
@@ -44,7 +46,6 @@ export function QRModal({ url, title, subtitle, onClose }: QRModalProps) {
           </button>
         </div>
 
-        {/* QR code on white bg */}
         <div className="flex justify-center p-5 bg-white rounded-xl mb-4">
           <QRCodeCanvas
             ref={canvasRef}
@@ -63,7 +64,7 @@ export function QRModal({ url, title, subtitle, onClose }: QRModalProps) {
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition"
         >
           <Download className="w-4 h-4" />
-          Télécharger le QR
+          {t('qr_download')}
         </button>
       </div>
     </div>

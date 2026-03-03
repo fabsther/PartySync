@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Calendar, MapPin, Clock, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -23,6 +24,7 @@ interface PartyListProps {
 }
 
 export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
+  const { t, i18n } = useTranslation('party');
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -50,9 +52,9 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Date TBD';
+    if (!dateString) return t('date_tbd');
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleString(i18n.language, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -72,13 +74,13 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white">Parties</h2>
+        <h2 className="text-2xl font-bold text-white">{t('parties', { ns: 'common' })}</h2>
         <button
           onClick={onCreateParty}
           className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition flex items-center space-x-2"
         >
           <Plus className="w-5 h-5" />
-          <span>New Party</span>
+          <span>{t('new_party')}</span>
         </button>
       </div>
 
@@ -89,8 +91,8 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
       ) : visibleParties.length === 0 ? (
       <div className="text-center py-12">
         <Calendar className="w-16 h-16 text-neutral-700 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-neutral-400 mb-2">No parties yet</h3>
-        <p className="text-neutral-500">Create your first party to get started</p>
+        <h3 className="text-xl font-semibold text-neutral-400 mb-2">{t('no_parties_yet')}</h3>
+        <p className="text-neutral-500">{t('no_parties_hint')}</p>
       </div>
       ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -111,9 +113,9 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
               <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/70" />
               <div className="absolute top-2 right-2 flex gap-1">
                 {party.cancelled_at ? (
-                  <span className="px-2 py-0.5 bg-red-500/80 text-white text-xs rounded-full">Annulée</span>
+                  <span className="px-2 py-0.5 bg-red-500/80 text-white text-xs rounded-full">{t('cancelled_badge')}</span>
                 ) : !party.is_date_fixed ? (
-                  <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs rounded-full">Vote</span>
+                  <span className="px-2 py-0.5 bg-orange-500/80 text-white text-xs rounded-full">{t('vote_badge')}</span>
                 ) : null}
               </div>
             </div>
@@ -136,9 +138,9 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
               {!party.banner_url && (
                 <div className="flex gap-1 shrink-0 ml-2">
                   {party.cancelled_at ? (
-                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">Annulée</span>
+                    <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">{t('cancelled_badge')}</span>
                   ) : !party.is_date_fixed ? (
-                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">Vote</span>
+                    <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">{t('vote_badge')}</span>
                   ) : null}
                 </div>
               )}

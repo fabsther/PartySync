@@ -24,6 +24,7 @@ import {
   Bell,
   QrCode,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { downloadICS, getGoogleCalendarUrl } from '../lib/calendar';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,6 +92,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  const { t, i18n } = useTranslation('party');
 
   useEffect(() => {
     loadParty();
@@ -153,9 +155,10 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
   };
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Date TBD';
+    if (!dateString) return t('date_tbd');
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    const locale = i18n.resolvedLanguage || 'fr';
+    return date.toLocaleDateString(locale, {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
@@ -204,8 +207,8 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
           confirmedGuests.map((g) =>
             sendRemoteNotification(
               g.user_id,
-              '❌ Soirée annulée',
-              `"${party.title}" a ete annulee par l'organisateur.`,
+              t('notif_cancelled_title'),
+              t('notif_cancelled_body', { title: party.title }),
               { partyId: party.id }
             )
           )
@@ -222,7 +225,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
       }
     } catch (error) {
       console.error('Error cancelling/deleting party:', error);
-      alert('Une erreur est survenue. Reessaie.');
+      alert(t('error_occurred'));
     } finally {
       setCancelling(false);
     }
@@ -237,8 +240,8 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Invitation : ${party.title}`,
-          text: `Tu es invité(e) à "${party.title}" sur PartySync !`,
+          title: t('notif_share_title', { title: party.title }),
+          text: t('notif_share_body', { title: party.title }),
           url: link,
         });
       } catch {
@@ -299,10 +302,10 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
     try {
       const changed: string[] = [];
       const newDateIso = editDraft.fixed_date ? new Date(editDraft.fixed_date).toISOString() : null;
-      if (party.is_date_fixed && newDateIso !== party.fixed_date) changed.push('la date/heure');
-      if (editDraft.address !== (party.address || '')) changed.push('le lieu');
-      if (editDraft.schedule !== (party.schedule || '')) changed.push('le programme');
-      if (editDraft.entry_instructions !== (party.entry_instructions || '')) changed.push("les instructions d'entrée");
+      if (party.is_date_fixed && newDateIso !== party.fixed_date) changed.push(t('field_date'));
+      if (editDraft.address !== (party.address || '')) changed.push(t('field_address'));
+      if (editDraft.schedule !== (party.schedule || '')) changed.push(t('field_schedule'));
+      if (editDraft.entry_instructions !== (party.entry_instructions || '')) changed.push(t('field_entry'));
 
       const updates: Partial<Party> = {
         address: editDraft.address || null,
@@ -336,13 +339,13 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
         .neq('user_id', user.id);
 
       const body = notifyMessage.trim() ||
-        (changedFields.length > 0 ? `Mis à jour : ${changedFields.join(', ')}` : 'Les infos de la soirée ont été mises à jour.');
+        (changedFields.length > 0 ? t('changed_fields_msg', { fields: changedFields.join(', ') }) : t('changes_generic_msg'));
 
       await Promise.allSettled(
         (guests || []).map(g =>
           sendRemoteNotification(
             g.user_id,
-            `📝 ${party.title} — Infos mises à jour`,
+            t('notif_update_title', { title: party.title }),
             body,
             { partyId, action: 'party_update' },
             `/party/${partyId}`
@@ -384,7 +387,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
   if (!party) {
     return (
       <div className="text-center py-12">
-        <p className="text-neutral-400">Party not found</p>
+        <p className="text-neutral-400">{t('party_not_found')}</p>
       </div>
     );
   }
@@ -396,7 +399,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
         className="flex items-center space-x-2 text-neutral-400 hover:text-white mb-4 transition"
       >
         <ArrowLeft className="w-5 h-5" />
-        <span>Back to Parties</span>
+        <span>{t('back_to_parties')}</span>
       </button>
 
       <div className="-mx-4 sm:-mx-6 lg:-mx-8 bg-neutral-900 overflow-hidden">
@@ -412,14 +415,14 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                   <button
                     onClick={() => bannerInputRef.current?.click()}
                     className="p-1.5 bg-black/50 hover:bg-black/70 rounded-lg text-white transition"
-                    title="Changer la bannière"
+                    title={t('change_banner')}
                   >
                     <ImagePlus className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleMediaRemove('banner')}
                     className="p-1.5 bg-black/50 hover:bg-black/70 rounded-lg text-white transition"
-                    title="Supprimer la bannière"
+                    title={t('delete_banner')}
                   >
                     <XIcon className="w-4 h-4" />
                   </button>
@@ -432,7 +435,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               className="w-full h-16 flex items-center justify-center gap-2 text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800/50 transition text-sm border-b border-neutral-800"
             >
               <ImagePlus className="w-4 h-4" />
-              Ajouter une bannière
+              {t('add_banner_text')}
             </button>
           ) : null}
           <input
@@ -449,11 +452,12 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-5 flex items-center gap-3">
               <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
               <div>
-                <p className="text-red-400 font-semibold">Soirée annulée</p>
+                <p className="text-red-400 font-semibold">{t('party_cancelled_badge')}</p>
                 <p className="text-neutral-400 text-sm">
-                  Annulée le{' '}
-                  {new Date(party.cancelled_at).toLocaleDateString('fr-FR', {
-                    day: 'numeric', month: 'long', year: 'numeric',
+                  {t('cancelled_on', {
+                    date: new Date(party.cancelled_at).toLocaleDateString(i18n.resolvedLanguage || 'fr', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    }),
                   })}
                 </p>
               </div>
@@ -484,7 +488,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                   <button
                     onClick={() => iconInputRef.current?.click()}
                     className="w-12 h-12 rounded-2xl border-2 border-dashed border-neutral-700 hover:border-orange-500 flex items-center justify-center transition"
-                    title="Ajouter une icône"
+                    title={t('add_icon')}
                   >
                     <Smile className="w-5 h-5 text-neutral-500" />
                   </button>
@@ -503,7 +507,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                 <div className="flex items-center space-x-3">
                   {!party.is_date_fixed && (
                     <span className="inline-block px-3 py-1 bg-orange-500/20 text-orange-400 text-sm rounded-full">
-                      Date voting open
+                      {t('date_voting_open')}
                     </span>
                   )}
                   <GuestCount partyId={partyId} />
@@ -516,14 +520,14 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                 <button
                   onClick={openEditModal}
                   className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition"
-                  title="Modifier la soirée"
+                  title={t('edit_party')}
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
                 <button
                   onClick={openCancelModal}
                   className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
-                  title="Annuler la soirée"
+                  title={t('cancel_party')}
                 >
                   <Ban className="w-5 h-5" />
                 </button>
@@ -542,12 +546,12 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl transition text-sm font-medium"
               >
                 {copiedPartyLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                <span>{copiedPartyLink ? 'Lien copié !' : "Partager l'invitation"}</span>
+                <span>{copiedPartyLink ? t('link_copied') : t('share_invite')}</span>
               </button>
               <button
                 onClick={() => setShowPartyQR(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 rounded-xl transition text-sm"
-                title="Afficher le QR code d'invitation"
+                title={t('show_qr')}
               >
                 <QrCode className="w-4 h-4" />
               </button>
@@ -590,18 +594,18 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                     className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/20 rounded-xl transition text-sm font-medium"
                   >
                     <MessageCircle className="w-4 h-4" />
-                    {detectChatPlatform(party.chat_url) === 'whatsapp' && 'Rejoindre le groupe WhatsApp'}
-                    {detectChatPlatform(party.chat_url) === 'telegram' && 'Rejoindre le groupe Telegram'}
-                    {detectChatPlatform(party.chat_url) === 'signal' && 'Rejoindre le groupe Signal'}
-                    {detectChatPlatform(party.chat_url) === 'discord' && 'Rejoindre le Discord'}
-                    {detectChatPlatform(party.chat_url) === 'other' && 'Rejoindre le groupe'}
+                    {detectChatPlatform(party.chat_url) === 'whatsapp' && t('join_group_whatsapp')}
+                    {detectChatPlatform(party.chat_url) === 'telegram' && t('join_group_telegram')}
+                    {detectChatPlatform(party.chat_url) === 'signal' && t('join_group_signal')}
+                    {detectChatPlatform(party.chat_url) === 'discord' && t('join_group_discord')}
+                    {detectChatPlatform(party.chat_url) === 'other' && t('join_group_other')}
                   </a>
                   {isCreator && !party.cancelled_at && (
                     <button
                       onClick={() => { setChatDraft(party.chat_url || ''); setEditingChat(true); }}
                       className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition text-xs"
                     >
-                      Modifier
+                      {t('edit_modify_btn')}
                     </button>
                   )}
                 </div>
@@ -611,7 +615,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                   className="flex items-center gap-2 px-4 py-2 border border-dashed border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:border-neutral-500 rounded-xl transition text-sm"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  Ajouter un lien de groupe (WhatsApp, Telegram…)
+                  {t('add_chat_group')}
                 </button>
               ) : null}
             </div>
@@ -627,7 +631,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                 )}
                 <div>
                   <div className="text-sm text-neutral-500 mb-1">
-                    {party.is_date_fixed ? 'Date & Time' : 'Vote for Date'}
+                    {party.is_date_fixed ? t('date_label') : t('vote_for_date_label')}
                   </div>
                   <div className="text-white">{formatDate(party.fixed_date)}</div>
 
@@ -638,7 +642,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                         className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition"
                       >
                         <CalendarPlus className="w-3.5 h-3.5" />
-                        <span>Ajouter à l'agenda</span>
+                        <span>{t('add_to_calendar')}</span>
                       </button>
 
                       {showCalendarMenu && (
@@ -671,7 +675,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                 <div className="flex items-start">
                   <MapPin className="w-5 h-5 text-orange-500 mr-3 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <div className="text-sm text-neutral-500 mb-1">Location</div>
+                    <div className="text-sm text-neutral-500 mb-1">{t('location_label')}</div>
                     <div className="text-white mb-2">{party.address}</div>
                     <div className="flex space-x-2">
                       <button
@@ -698,14 +702,14 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             <div className="space-y-3">
               {party.schedule && (
                 <div>
-                  <div className="text-sm text-neutral-500 mb-1">Schedule</div>
+                  <div className="text-sm text-neutral-500 mb-1">{t('schedule_label')}</div>
                   <div className="text-white whitespace-pre-line">{party.schedule}</div>
                 </div>
               )}
 
               {party.entry_instructions && (
                 <div>
-                  <div className="text-sm text-neutral-500 mb-1">Entry Instructions</div>
+                  <div className="text-sm text-neutral-500 mb-1">{t('entry_label')}</div>
                   <div className="text-white whitespace-pre-line">{party.entry_instructions}</div>
                 </div>
               )}
@@ -739,7 +743,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Posts</span>
+              <span>{t('tab_posts')}</span>
             </button>
             <button
               onClick={() => setActiveTab('guests')}
@@ -750,7 +754,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Guests</span>
+              <span>{t('tab_guests')}</span>
             </button>
             <button
               onClick={() => setActiveTab('carshare')}
@@ -761,7 +765,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               }`}
             >
               <Car className="w-4 h-4" />
-              <span>Car Sharing</span>
+              <span>{t('tab_carshare')}</span>
             </button>
             <button
               onClick={() => setActiveTab('equipment')}
@@ -772,7 +776,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               }`}
             >
               <Wrench className="w-4 h-4" />
-              <span>Equipment</span>
+              <span>{t('tab_equipment')}</span>
             </button>
             <button
               onClick={() => setActiveTab('food')}
@@ -783,7 +787,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               }`}
             >
               <UtensilsCrossed className="w-4 h-4" />
-              <span>Food & Drinks</span>
+              <span>{t('tab_food')}</span>
             </button>
             <button
               onClick={() => setActiveTab('crowdfund')}
@@ -794,7 +798,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               }`}
             >
               <CrowdfundIcon className="w-4 h-4" />
-              <span>Cagnotte</span>
+              <span>{t('tab_crowdfund')}</span>
             </button>
           </div>
         </div>
@@ -834,7 +838,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               : `${window.location.origin}?join_party=${party.id}`
           }
           title={`Invitation — ${party.title}`}
-          subtitle="Scanne pour rejoindre la soirée"
+          subtitle={t('qr_subtitle')}
           onClose={() => setShowPartyQR(false)}
         />
       )}
@@ -847,7 +851,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               <div className="p-2 bg-orange-500/20 rounded-lg">
                 <Pencil className="w-5 h-5 text-orange-400" />
               </div>
-              <h3 className="text-xl font-bold text-white">Modifier la soirée</h3>
+              <h3 className="text-xl font-bold text-white">{t('edit_party')}</h3>
               <button
                 onClick={() => setShowEditModal(false)}
                 className="ml-auto p-1.5 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition"
@@ -859,7 +863,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
             <div className="space-y-5">
               {party?.is_date_fixed && (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">Date &amp; heure</label>
+                  <label className="block text-sm font-medium text-neutral-400 mb-1.5">{t('edit_date')}</label>
                   <input
                     type="datetime-local"
                     value={editDraft.fixed_date}
@@ -870,12 +874,12 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               )}
 
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">Lieu / adresse</label>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">{t('edit_address')}</label>
                 <input
                   type="text"
                   value={editDraft.address}
                   onChange={e => setEditDraft(d => ({ ...d, address: e.target.value }))}
-                  placeholder="Adresse ou nom du lieu"
+                  placeholder={t('edit_address_placeholder')}
                   className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm"
                 />
               </div>

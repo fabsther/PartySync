@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, Check, Trash2, Bell } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
@@ -46,6 +47,7 @@ interface AddToCrowdfundPopupProps {
 }
 
 function AddToCrowdfundPopup({ item, partyId, onClose }: AddToCrowdfundPopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [quantity, setQuantity] = useState(String(item.quantity_required));
   const [price, setPrice] = useState('');
@@ -97,7 +99,7 @@ function AddToCrowdfundPopup({ item, partyId, onClose }: AddToCrowdfundPopupProp
       setSuccess(true);
       setTimeout(onClose, 800);
     } catch (e: any) {
-      setError(e.message || 'Erreur.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
@@ -107,19 +109,19 @@ function AddToCrowdfundPopup({ item, partyId, onClose }: AddToCrowdfundPopupProp
     <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col">
       <div className="flex items-center gap-3 px-4 py-4 border-b border-neutral-800">
         <button onClick={onClose} className="text-neutral-400 hover:text-white transition text-2xl leading-none">←</button>
-        <h2 className="text-white font-semibold text-lg">Ajouter à ma cagnotte</h2>
+        <h2 className="text-white font-semibold text-lg">{t('add_to_crowdfund_title')}</h2>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
         {error && <p className="text-red-400 text-sm">{error}</p>}
-        {success && <p className="text-green-400 text-sm">Ajouté !</p>}
+        {success && <p className="text-green-400 text-sm">{t('added_success')}</p>}
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Item</label>
+          <label className="block text-sm text-neutral-400">{t('equipment_item')}</label>
           <div className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-neutral-400">{item.name}</div>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Quantité</label>
+          <label className="block text-sm text-neutral-400">{t('quantity')}</label>
           <input
             type="number"
             min="1"
@@ -131,7 +133,7 @@ function AddToCrowdfundPopup({ item, partyId, onClose }: AddToCrowdfundPopupProp
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Prix total (€)</label>
+          <label className="block text-sm text-neutral-400">{t('total_price')} (€)</label>
           <input
             type="number"
             min="0"
@@ -149,7 +151,7 @@ function AddToCrowdfundPopup({ item, partyId, onClose }: AddToCrowdfundPopupProp
           disabled={saving || success}
           className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
         >
-          {saving ? 'Enregistrement…' : success ? '✅ Ajouté !' : 'Ajouter à ma cagnotte'}
+          {saving ? t('saving') : success ? t('added_success') : t('add_to_crowdfund_title')}
         </button>
       </div>
     </div>
@@ -168,6 +170,7 @@ const defaultEquipment: Array<{ name: string; quantity_required: number }> = [
 ];
 
 export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
+  const { t } = useTranslation('logistics');
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -270,28 +273,22 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
           new Set((guestList || []).map(g => g.user_id).filter(uid => !!uid && uid !== creatorId))
         );
 
-        const title = '🧰 Nouvel équipement ajouté';
-        const body  = `« ${data?.name} » a été ajouté (${data?.quantity_required} requis). Ouvrez l'onglet Équipement pour contribuer.`;
-
         await Promise.all(
           uniqueUserIds.map(uid =>
             sendRemoteNotification(
               uid!,
-              title,
-              body,
+              t('notif_equip_added_title'),
+              t('notif_equip_added_body', { name: data?.name, qty: data?.quantity_required }),
               { partyId, action: 'equipment_custom_added', equipmentId: data?.id },
               deepLink
             )
           )
         );
       } else if (user?.id) {
-        const title = `🧰 Ajout d'équipement par un invité`;
-        const body  = `${user.email || 'Un invité'} a ajouté « ${data?.name} » (${data?.quantity_required} requis).`;
-
         await sendRemoteNotification(
           creatorId,
-          title,
-          body,
+          t('notif_equip_guest_title'),
+          t('notif_equip_guest_body', { author: user.email || t('unknown_name'), name: data?.name, qty: data?.quantity_required }),
           { partyId, action: 'equipment_custom_added_by_guest', equipmentId: data?.id, by: user.id },
           deepLink
         );
@@ -299,7 +296,6 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
 
     } catch (error) {
       console.error('Error adding equipment:', error);
-      alert('Failed to add equipment item.');
     }
   };
 
@@ -330,7 +326,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
   };
 
   const deleteEquipment = async (equipmentId: string) => {
-    if (!isCreator || !window.confirm('Are you sure you want to delete this equipment item?')) return;
+    if (!isCreator || !window.confirm(t('delete_item_confirm'))) return;
 
     try {
       const { error } = await supabase
@@ -342,15 +338,14 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
       loadEquipment();
     } catch (error) {
       console.error('Error deleting equipment:', error);
-      alert('Failed to delete equipment item.');
     }
   };
 
   const pingGuestForEquipment = async (guestUserId: string, item: EquipmentItem) => {
     const notifTitle = partyTitle
-      ? `🧰 On a besoin de toi — ${partyTitle}`
-      : '🧰 On a besoin de toi !';
-    const notifBody = `Peux-tu amener « ${item.name} » à la soirée ?`;
+      ? t('notif_ping_title', { partyTitle })
+      : t('notif_equip_added_title');
+    const notifBody = t('notif_ping_body', { name: item.name });
 
     await sendRemoteNotification(
       guestUserId,
@@ -370,7 +365,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
   };
 
   if (loading) {
-    return <div className="text-center text-neutral-400">Loading equipment...</div>;
+    return <div className="text-center text-neutral-400">{t('loading', { ns: 'common' })}</div>;
   }
 
   return (
@@ -382,7 +377,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
               onClick={addDefaultEquipment}
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
             >
-              Add Default Equipment List
+              {t('add_default_list')}
             </button>
           )}
           <button
@@ -390,7 +385,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
             className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition flex items-center space-x-2"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Custom Item</span>
+            <span>{t('add_custom_item_btn')}</span>
           </button>
         </div>
       )}
@@ -402,11 +397,11 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
               type="text"
               value={newItemName}
               onChange={(e) => setNewItemName(e.target.value)}
-              placeholder="Item name"
+              placeholder={t('item_name_placeholder')}
               className="px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
             />
             <div>
-              <label className="block text-xs text-neutral-400 mb-1">Required quantity (units)</label>
+              <label className="block text-xs text-neutral-400 mb-1">{t('required_quantity_label')}</label>
               <input
                 type="number"
                 min={1}
@@ -420,7 +415,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
               type="submit"
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition self-end"
             >
-              Add
+              {t('add_food')}
             </button>
           </div>
         </form>
@@ -429,7 +424,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {equipment.length === 0 ? (
           <p className="text-neutral-500 col-span-full text-center py-8">
-            No equipment added yet
+            {t('no_equipment')}
           </p>
         ) : (
           equipment.map((item) => {
@@ -439,7 +434,6 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
             const brought = contributors.length;
             const needed = Math.max(0, (item.quantity_required || 0) - brought);
 
-            // Invités éligibles au ping : pas encore contributeurs sur cet item
             const pingableGuests = guests.filter(
               g => g.user_id !== creatorId && !contributors.some(c => c.user_id === g.user_id)
             );
@@ -456,9 +450,9 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-white font-medium truncate">{item.name}</h4>
                     <div className="text-xs text-neutral-400 mt-1">
-                      Required: <span className="text-neutral-200">{item.quantity_required}</span> •
-                      Brought: <span className="text-green-400">{brought}</span> •
-                      Needed: <span className="text-orange-300">{needed}</span>
+                      {t('required_label')}: <span className="text-neutral-200">{item.quantity_required}</span> •
+                      {t('brought_label')}: <span className="text-green-400">{brought}</span> •
+                      {t('needed_label')}: <span className="text-orange-300">{needed}</span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -466,7 +460,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                     <button
                       onClick={() => setCrowdfundItem(item)}
                       className="p-1 text-yellow-400 hover:bg-yellow-500/20 rounded transition"
-                      title="Ajouter à ma cagnotte"
+                      title={t('add_to_crowdfund_title')}
                     >
                       <CrowdfundIcon className="w-4 h-4" />
                     </button>
@@ -474,7 +468,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                       <button
                         onClick={() => deleteEquipment(item.id)}
                         className="p-1 text-red-400 hover:bg-red-500/20 rounded transition"
-                        title="Delete item"
+                        title={t('delete_item_btn')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -484,7 +478,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
 
                 {contributors.length > 0 && (
                   <div className="mb-3">
-                    <div className="text-xs text-neutral-500 mb-1">Contributors:</div>
+                    <div className="text-xs text-neutral-500 mb-1">{t('contributors_label')}:</div>
                     <div className="text-sm text-green-400 truncate">
                       {contributors.map(
                         (c) => c.profiles.full_name || c.profiles.email
@@ -501,7 +495,7 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                       : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
                   }`}
                 >
-                  {isContributing ? "I won't bring this" : "I'll bring this"}
+                  {isContributing ? t('wont_bring') : t('will_bring')}
                 </button>
 
                 {/* Ping button — organizer only, item not fully covered */}
@@ -512,14 +506,14 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                       className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition"
                     >
                       <Bell className="w-3.5 h-3.5" />
-                      Relancer quelqu'un
+                      {t('ping_guest_btn')}
                     </button>
 
                     {pingEquipmentId === item.id && (
                       <div className="mt-2 bg-neutral-900 rounded-lg overflow-hidden">
                         {pingableGuests.length === 0 ? (
                           <p className="text-xs text-neutral-500 px-3 py-2">
-                            Tous les invités ont déjà contribué
+                            {t('all_contributed')}
                           </p>
                         ) : (
                           pingableGuests.map(g => {

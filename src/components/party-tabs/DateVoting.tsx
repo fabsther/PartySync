@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
@@ -12,25 +13,8 @@ interface DateVotingProps {
   onVoteResolved: (winningDate: string) => void;
 }
 
-function formatTimeLeft(deadline: Date): string {
-  const diff = deadline.getTime() - Date.now();
-  if (diff <= 0) return 'Terminé';
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  if (days > 0) return `${days}j ${hours}h ${mins}m`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-function formatDateOption(iso: string): string {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return `${day[0].toUpperCase()}${day.slice(1)} · ${time}`;
-}
-
 export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onVoteResolved }: DateVotingProps) {
+  const { t, i18n } = useTranslation('party');
   const { user } = useAuth();
   const [votes, setVotes] = useState<{ user_id: string; option_index: number }[]>([]);
   const [myVote, setMyVote] = useState<number | null>(null);
@@ -44,6 +28,26 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
 
   const deadlineDate = new Date(voteDeadline);
   const isDeadlinePassed = deadlineDate <= new Date();
+
+  const locale = i18n.resolvedLanguage ?? 'fr';
+
+  const formatTimeLeft = (): string => {
+    const diff = deadlineDate.getTime() - Date.now();
+    if (diff <= 0) return t('vote_closed');
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (days > 0) return t('time_dhm', { days, hours, mins });
+    if (hours > 0) return t('time_hm', { hours, mins });
+    return t('time_m', { mins });
+  };
+
+  const formatDateOption = (iso: string): string => {
+    const d = new Date(iso);
+    const day = d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+    const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    return `${day[0].toUpperCase()}${day.slice(1)} · ${time}`;
+  };
 
   // Load votes + guest count
   const loadVotes = async () => {
@@ -79,12 +83,12 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
 
   // Timer countdown
   useEffect(() => {
-    setTimeLeft(formatTimeLeft(deadlineDate));
+    setTimeLeft(formatTimeLeft());
     if (isDeadlinePassed) return;
     const interval = setInterval(() => {
-      const tl = formatTimeLeft(deadlineDate);
-      setTimeLeft(tl);
-      if (tl === 'Terminé' && !loading) resolveVoteIfNeeded();
+      const now = Date.now();
+      setTimeLeft(formatTimeLeft());
+      if (now >= deadlineDate.getTime() && !loading) resolveVoteIfNeeded();
     }, 30000);
     return () => clearInterval(interval);
   }, [voteDeadline, loading]);
@@ -136,8 +140,8 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
           (guests || []).map(g =>
             sendRemoteNotification(
               g.user_id,
-              `🗳️ Vote terminé — ${partyTitle}`,
-              `La date retenue est : ${winnerLabel}`,
+              t('vote_resolved_notif_title', { partyTitle }),
+              t('vote_resolved_notif_body', { date: winnerLabel }),
               { partyId, action: 'vote_resolved' },
               `/party/${partyId}`
             )
@@ -185,17 +189,17 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
       >
         <div className="flex items-center gap-2">
           <span className="text-base">🗳️</span>
-          <span className="text-white font-semibold text-sm">Vote pour la date</span>
+          <span className="text-white font-semibold text-sm">{t('vote_for_date')}</span>
           {myVote !== null && !isDeadlinePassed && (
-            <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">Voté ✓</span>
+            <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">{t('voted')}</span>
           )}
           {isDeadlinePassed && (
-            <span className="px-2 py-0.5 bg-neutral-700 text-neutral-400 text-xs rounded-full">Terminé</span>
+            <span className="px-2 py-0.5 bg-neutral-700 text-neutral-400 text-xs rounded-full">{t('vote_closed')}</span>
           )}
         </div>
         <div className="flex items-center gap-3">
           <span className={`text-xs font-medium tabular-nums ${isDeadlinePassed ? 'text-neutral-500' : 'text-orange-400'}`}>
-            {isDeadlinePassed ? `${totalVotes} vote${totalVotes !== 1 ? 's' : ''}` : `⏱ ${timeLeft}`}
+            {isDeadlinePassed ? t('votes', { count: totalVotes }) : `⏱ ${timeLeft}`}
           </span>
           {isExpanded
             ? <ChevronUp className="w-4 h-4 text-neutral-400" />
@@ -208,19 +212,19 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
           {/* Deadline info */}
           {!isDeadlinePassed ? (
             <p className="text-xs text-neutral-500 pb-1">
-              Vote ouvert jusqu'au{' '}
+              {t('vote_open_until', { date: '' }).replace(' {{date}}', '')}{' '}
               <span className="text-neutral-400">
-                {deadlineDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                {' à '}
-                {deadlineDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                {deadlineDate.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}
+                {' · '}
+                {deadlineDate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
               </span>
               {guestCount > 0 && (
-                <span className="ml-2 text-neutral-600">· {totalVotes}/{guestCount} ont voté</span>
+                <span className="ml-2 text-neutral-600">· {t('participants_voted', { voted: totalVotes, total: guestCount })}</span>
               )}
             </p>
           ) : (
             <p className="text-xs text-neutral-500 pb-1">
-              Vote clôturé · {totalVotes} participant{totalVotes !== 1 ? 's' : ''}
+              {t('vote_closed_count', { count: totalVotes })}
             </p>
           )}
 
@@ -253,7 +257,7 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
                     {isMyVote && !isDeadlinePassed && <Check className="w-3.5 h-3.5 text-orange-400" />}
                     {showResults && (
                       <span className="text-xs text-neutral-400 tabular-nums">
-                        {count} vote{count !== 1 ? 's' : ''}
+                        {t('votes', { count })}
                       </span>
                     )}
                   </div>
@@ -276,16 +280,16 @@ export function DateVoting({ partyId, partyTitle, dateOptions, voteDeadline, onV
 
           {/* Hints */}
           {!showResults && !isDeadlinePassed && (
-            <p className="text-xs text-neutral-600 text-center pt-1">Clique sur une option pour voter</p>
+            <p className="text-xs text-neutral-600 text-center pt-1">{t('click_to_vote')}</p>
           )}
           {myVote !== null && !isDeadlinePassed && (
-            <p className="text-xs text-neutral-600 text-center pt-1">Tu peux changer ton vote jusqu'à la deadline.</p>
+            <p className="text-xs text-neutral-600 text-center pt-1">{t('change_vote_hint')}</p>
           )}
 
           {resolving && (
             <div className="flex items-center justify-center gap-2 py-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500" />
-              <span className="text-xs text-neutral-400">Calcul du résultat…</span>
+              <span className="text-xs text-neutral-400">{t('calculating')}</span>
             </div>
           )}
         </div>

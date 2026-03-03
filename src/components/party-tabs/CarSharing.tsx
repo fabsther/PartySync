@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Car, MapPin, Users, X, LogOut, UserMinus, Navigation } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
@@ -90,6 +91,7 @@ async function geocode(address: string): Promise<{ lat: number; lng: number } | 
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProps) {
+  const { t } = useTranslation('logistics');
   const [offers, setOffers] = useState<RideOffer[]>([]);
   const [requests, setRequests] = useState<RideRequest[]>([]);
   const [profiles, setProfiles] = useState<Map<string, any>>(new Map());
@@ -517,7 +519,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  if (loading) return <div className="text-center text-neutral-400">Loading car sharing...</div>;
+  if (loading) return <div className="text-center text-neutral-400">{t('loading_carshare')}</div>;
 
   const userHasActiveOfferWithSeats = offers.some(o =>
     o.user_id === user?.id && o.status === 'active' && o.capacity - o.passengers.length > 0
@@ -532,7 +534,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
         className="w-full md:w-auto px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center justify-center space-x-2 disabled:opacity-50"
       >
         <Car className="w-5 h-5" />
-        <span>{showForm ? 'Annuler' : 'Ajouter un trajet'}</span>
+        <span>{showForm ? t('cancel', { ns: 'common' }) : t('add_ride')}</span>
       </button>
 
       {/* ── Form ─────────────────────────────────────────────────────────── */}
@@ -540,16 +542,16 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
         <form onSubmit={handleSubmit} className="bg-neutral-800 rounded-lg p-6 space-y-4">
           {/* Offer / Request toggle */}
           <div className="flex space-x-4">
-            {(['offer', 'request'] as const).map(t => (
-              <label key={t} className="flex items-center space-x-2 cursor-pointer">
+            {(['offer', 'request'] as const).map(rideType => (
+              <label key={rideType} className="flex items-center space-x-2 cursor-pointer">
                 <input
-                  type="radio" name="type" value={t}
-                  checked={formData.type === t}
-                  onChange={() => setFormData({ ...formData, type: t, departure_location: '', car_type: 'personal' })}
+                  type="radio" name="type" value={rideType}
+                  checked={formData.type === rideType}
+                  onChange={() => setFormData({ ...formData, type: rideType, departure_location: '', car_type: 'personal' })}
                   className="text-orange-500 focus:ring-orange-500"
                 />
                 <span className="text-white">
-                  {t === 'offer' ? 'Je propose un trajet' : 'Je cherche un trajet'}
+                  {rideType === 'offer' ? t('i_offer') : t('i_request')}
                 </span>
               </label>
             ))}
@@ -570,7 +572,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                       : 'border-neutral-600 text-neutral-400 hover:border-neutral-500'
                   }`}
                 >
-                  {ct === 'uber' ? '🚗 Via Uber' : '🚙 Voiture perso'}
+                  {ct === 'uber' ? t('via_uber') : t('personal_car_btn')}
                 </button>
               ))}
             </div>
@@ -579,14 +581,14 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
           {/* Departure / pickup location */}
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
-              {formData.type === 'offer' ? 'Adresse de départ' : 'Adresse de ramassage'}
+              {formData.type === 'offer' ? t('departure_address') : t('pickup_address')}
             </label>
             <input
               type="text" required
               value={formData.departure_location}
               onChange={e => setFormData({ ...formData, departure_location: e.target.value })}
               className="w-full px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-              placeholder={formData.type === 'offer' ? 'Ton adresse de départ' : 'Où tu veux être pris'}
+              placeholder={formData.type === 'offer' ? t('departure_placeholder') : t('pickup_placeholder')}
             />
             {/* Phase 1 — save to profile checkbox */}
             {formData.type === 'request' && hasProfileLocation === false && (
@@ -597,7 +599,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                   onChange={e => setSaveAddress(e.target.checked)}
                   className="rounded text-orange-500 focus:ring-orange-500"
                 />
-                <span className="text-sm text-neutral-400">Sauvegarder comme adresse par défaut</span>
+                <span className="text-sm text-neutral-400">{t('save_address')}</span>
               </label>
             )}
           </div>
@@ -605,7 +607,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
           {/* Seats (personal offer only) */}
           {formData.type === 'offer' && formData.car_type === 'personal' && (
             <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Places disponibles</label>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">{t('available_seats')}</label>
               <input
                 type="number" min="1" max="10" required
                 value={formData.capacity}
@@ -619,7 +621,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
             type="submit" disabled={actionInFlight}
             className="w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50"
           >
-            {actionInFlight ? 'Envoi…' : 'Valider'}
+            {actionInFlight ? t('submitting') : t('submit')}
           </button>
         </form>
       )}
@@ -628,7 +630,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
       {geocoding && (
         <div className="text-sm text-neutral-400 flex items-center space-x-2">
           <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-          <span>Recherche des personnes à proximité…</span>
+          <span>{t('searching_nearby')}</span>
         </div>
       )}
 
@@ -638,13 +640,13 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
           <div className="bg-neutral-900 border border-neutral-700 rounded-xl p-6 w-full max-w-md space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-white">
-                {nearbyModal.length} personne{nearbyModal.length > 1 ? 's' : ''} à proximité
+                {t('nearby_people', { count: nearbyModal.length })}
               </h3>
               <button onClick={() => setNearbyModal(null)} className="text-neutral-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-sm text-neutral-400">Ces personnes cherchent un trajet dans ton secteur.</p>
+            <p className="text-sm text-neutral-400">{t('nearby_hint')}</p>
             <div className="space-y-3 max-h-72 overflow-y-auto">
               {nearbyModal.map(({ request, distanceKm, uberCompatible }) => (
                 <div key={request.id} className="bg-neutral-800 rounded-lg p-3 space-y-1">
@@ -662,7 +664,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                       <div className="text-orange-400 font-medium">{distanceKm.toFixed(1)} km</div>
                       {uberCompatible !== undefined && (
                         <div className={uberCompatible ? 'text-green-400' : 'text-red-400'}>
-                          {uberCompatible ? '✓ Uber compatible' : '✗ Détour trop long'}
+                          {uberCompatible ? t('uber_compatible') : t('detour_too_long')}
                         </div>
                       )}
                     </div>
@@ -676,7 +678,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                       disabled={actionInFlight}
                       className="w-full mt-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition text-xs disabled:opacity-50"
                     >
-                      Prendre en charge
+                      {t('pickup_btn')}
                     </button>
                   )}
                 </div>
@@ -686,7 +688,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
               onClick={() => setNearbyModal(null)}
               className="w-full py-2 text-neutral-400 hover:text-white text-sm transition"
             >
-              Fermer
+              {t('close', { ns: 'common' })}
             </button>
           </div>
         </div>
@@ -699,11 +701,11 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
         <div>
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <Car className="w-5 h-5 text-green-500" />
-            <span>Trajets proposés ({offers.length})</span>
+            <span>{t('offers_section', { count: offers.length })}</span>
           </h3>
           <div className="space-y-3">
             {offers.length === 0 ? (
-              <p className="text-neutral-500 text-sm">Aucune offre pour l'instant</p>
+              <p className="text-neutral-500 text-sm">{t('no_offers')}</p>
             ) : offers.map(offer => {
               const available = offer.capacity - offer.passengers.length;
               const isOwner = offer.user_id === user?.id;
@@ -718,9 +720,9 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                       </div>
                       {/* Phase 2 — car type badge */}
                       {isUber ? (
-                        <span className="px-2 py-0.5 bg-black text-white text-xs rounded-full font-medium">Uber</span>
+                        <span className="px-2 py-0.5 bg-black text-white text-xs rounded-full font-medium">{t('uber_badge')}</span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-neutral-700 text-neutral-300 text-xs rounded-full">Perso</span>
+                        <span className="px-2 py-0.5 bg-neutral-700 text-neutral-300 text-xs rounded-full">{t('personal_badge')}</span>
                       )}
                     </div>
                     <div className="flex items-center space-x-1 text-sm text-green-400">
@@ -742,17 +744,17 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                       className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-black text-white text-xs rounded-lg hover:bg-neutral-900 transition mb-3"
                     >
                       <Navigation className="w-3.5 h-3.5" />
-                      <span>Ouvrir Uber</span>
+                      <span>{t('open_uber')}</span>
                     </a>
                   )}
 
                   {/* Passengers list */}
                   {offer.passengers.length > 0 && (
                     <div className="mt-3 space-y-2 border-t border-neutral-700 pt-3">
-                      <div className="text-xs font-medium text-neutral-400 uppercase">Passagers</div>
+                      <div className="text-xs font-medium text-neutral-400 uppercase">{t('passengers')}</div>
                       {offer.passengers.map((p, idx) => {
                         const profile = profiles.get(p.userId);
-                        const name = profile?.full_name || profile?.email || 'Inconnu';
+                        const name = profile?.full_name || profile?.email || t('unknown_name');
                         const isMe = p.userId === user?.id;
                         const { maps, waze } = buildMapsAndWazeLinks(p.pickupLocation);
                         return (
@@ -771,7 +773,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                                 disabled={actionInFlight}
                                 className="ml-2 px-2 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-xs flex items-center space-x-1 disabled:opacity-50"
                               >
-                                <UserMinus className="w-3 h-3" /><span>Retirer</span>
+                                <UserMinus className="w-3 h-3" /><span>{t('remove_passenger')}</span>
                               </button>
                             )}
                             {isMe && (
@@ -779,7 +781,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                                 disabled={actionInFlight}
                                 className="ml-2 px-2 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-xs flex items-center space-x-1 disabled:opacity-50"
                               >
-                                <LogOut className="w-3 h-3" /><span>Quitter</span>
+                                <LogOut className="w-3 h-3" /><span>{t('leave_ride_btn')}</span>
                               </button>
                             )}
                           </div>
@@ -792,7 +794,7 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                     <button onClick={() => cancelOffer(offer)} disabled={actionInFlight}
                       className="mt-3 w-full px-3 py-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm flex items-center justify-center space-x-1 disabled:opacity-50"
                     >
-                      <X className="w-4 h-4" /><span>Annuler le trajet</span>
+                      <X className="w-4 h-4" /><span>{t('cancel_offer_btn')}</span>
                     </button>
                   )}
                 </div>
@@ -805,11 +807,11 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
         <div>
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
             <Car className="w-5 h-5 text-orange-500" />
-            <span>Demandes de trajet ({requests.length})</span>
+            <span>{t('requests_section', { count: requests.length })}</span>
           </h3>
           <div className="space-y-3">
             {requests.length === 0 ? (
-              <p className="text-neutral-500 text-sm">Aucune demande pour l'instant</p>
+              <p className="text-neutral-500 text-sm">{t('no_requests')}</p>
             ) : requests.map(request => {
               const isOwner = request.user_id === user?.id;
               const { maps, waze } = buildMapsAndWazeLinks(request.departure_location);
@@ -833,14 +835,14 @@ export function CarSharing({ partyId, partyAddress, partyTitle }: CarSharingProp
                     <button onClick={() => handlePickupClick(request)} disabled={actionInFlight}
                       className="w-full px-3 py-2 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition text-sm disabled:opacity-50"
                     >
-                      Prendre en charge
+                      {t('pickup_btn')}
                     </button>
                   )}
                   {isOwner && (
                     <button onClick={() => cancelRequest(request.id)} disabled={actionInFlight}
                       className="w-full px-3 py-2 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm flex items-center justify-center space-x-1 disabled:opacity-50"
                     >
-                      <X className="w-4 h-4" /><span>Annuler la demande</span>
+                      <X className="w-4 h-4" /><span>{t('cancel_request_btn')}</span>
                     </button>
                   )}
                 </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UserPlus, UserMinus, Users, Share2, Copy, Check, QrCode } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { QRModal } from './QRModal';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,6 +16,7 @@ interface Subscriber {
 }
 
 export function SubscribersList() {
+  const { t } = useTranslation('profile');
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [subscribedTo, setSubscribedTo] = useState<Subscriber[]>([]);
   const [inviteCode, setInviteCode] = useState<string>('');
@@ -67,38 +69,33 @@ export function SubscribersList() {
 
   const loadInviteCode = async () => {
     if (!user) return;
-  
+
     try {
-      // 1) Tenter de récupérer un unique code existant pour cet utilisateur
-      //    - Si plusieurs existent déjà (legacy), on prend le plus récent.
       const { data: existingRows, error: selectError } = await supabase
         .from('invite_codes')
         .select('code, created_at')
         .eq('created_by', user.id)
-        .order('created_at', { ascending: false }) // nécessite une colonne created_at, voir plus bas
+        .order('created_at', { ascending: false })
         .limit(1);
-  
+
       if (selectError) throw selectError;
-  
+
       if (existingRows && existingRows.length > 0) {
         setInviteCode(existingRows[0].code);
         return;
       }
-  
-      // 2) Aucun code : en créer un, mais sans jamais dupliquer
+
       const newCode = generateInviteCode();
-  
-      // insert with onConflict -> ignore si un autre client l'a créé entre-temps
+
       const { error: insertError } = await supabase
         .from('invite_codes')
         .upsert(
           { code: newCode, created_by: user.id },
           { onConflict: 'created_by', ignoreDuplicates: true }
         );
-  
+
       if (insertError) throw insertError;
-  
-      // 3) Relire le code (que ce soit celui inséré ou celui pré-existant en cas de conflit)
+
       const { data: finalRow, error: finalSelectError } = await supabase
         .from('invite_codes')
         .select('code')
@@ -106,14 +103,13 @@ export function SubscribersList() {
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-  
+
       if (finalSelectError) throw finalSelectError;
       setInviteCode(finalRow.code);
     } catch (error) {
       console.error('Error loading invite code:', error);
     }
   };
-
 
   const generateInviteCode = () => {
     return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -126,12 +122,12 @@ export function SubscribersList() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-    const copyInviteCode = () => {
-      navigator.clipboard.writeText(inviteCode);
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
-    };
-  
+  const copyInviteCode = () => {
+    navigator.clipboard.writeText(inviteCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
   const kickSubscriber = async (rowId: string) => {
     try {
       const { error } = await supabase.from('subscribers').delete().eq('id', rowId);
@@ -166,67 +162,64 @@ export function SubscribersList() {
     }
   };
 
-  // IDs des gens auxquels je suis déjà abonné
   const subscribedToIds = new Set(subscribedTo.map(s => s.subscriber_id));
 
-   const addFriendByCode = async () => {
+  const addFriendByCode = async () => {
     if (!user || !friendCode.trim()) return;
-  
+
     setAddingFriend(true);
     try {
       const trimmedCode = friendCode.trim().toUpperCase();
-  
+
       const { data: codeData, error: codeError } = await supabase
         .from('invite_codes')
         .select('created_by')
         .eq('code', trimmedCode)
         .maybeSingle();
-  
+
       if (codeError) throw codeError;
-  
+
       if (!codeData) {
-        alert('Invalid invite code. Please check and try again.');
+        alert(t('invalid_code'));
         return;
       }
-  
-      // check ID, not code
+
       if (codeData.created_by === user.id) {
-        alert('You cannot subscribe to yourself!');
+        alert(t('self_subscribe'));
         return;
       }
-  
+
       const { data: existing, error: existingError } = await supabase
         .from('subscribers')
         .select('id')
         .eq('user_id', codeData.created_by)
         .eq('subscriber_id', user.id)
         .maybeSingle();
-  
+
       if (existingError && existingError.code !== 'PGRST116') throw existingError;
-  
+
       if (existing) {
-        alert('You are already subscribed to this user!');
+        alert(t('already_subscribed'));
         return;
       }
-  
+
       const { error: insertError } = await supabase.from('subscribers').insert({
         user_id: codeData.created_by,
         subscriber_id: user.id,
       });
-  
+
       if (insertError) throw insertError;
-  
+
       setFriendCode('');
       await loadSubscribers();
-      alert('Successfully added friend!');
+      alert(t('added_friend'));
     } catch (error) {
       console.error('Error adding friend by code:', error);
-      alert('Failed to add friend. Please try again.');
+      alert(t('add_failed'));
     } finally {
       setAddingFriend(false);
     }
   };
-
 
   if (loading) {
     return (
@@ -241,16 +234,13 @@ export function SubscribersList() {
       <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/10 border border-orange-500/30 rounded-xl p-6">
         <div className="flex items-center space-x-3 mb-4">
           <Share2 className="w-6 h-6 text-orange-400" />
-          <h2 className="text-xl font-bold text-white">Share Your Invite</h2>
+          <h2 className="text-xl font-bold text-white">{t('share_invite')}</h2>
         </div>
-        <p className="text-neutral-300 mb-4">
-          Share this link or code with friends. When they sign up or enter your code, they'll automatically become your subscribers
-          and see your parties.
-        </p>
+        <p className="text-neutral-300 mb-4">{t('share_invite_hint')}</p>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Invite Link</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('invite_link')}</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -261,7 +251,7 @@ export function SubscribersList() {
               <button
                 onClick={() => setShowQR(true)}
                 className="shrink-0 px-3 py-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 rounded-lg transition"
-                title="Afficher le QR code"
+                title="QR code"
               >
                 <QrCode className="w-5 h-5" />
               </button>
@@ -270,13 +260,13 @@ export function SubscribersList() {
                 className="shrink-0 px-3 sm:px-5 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2"
               >
                 {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
+                <span className="hidden sm:inline">{copied ? t('copied', { ns: 'common' }) : t('copy', { ns: 'common' })}</span>
               </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Your Invite Code</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('invite_code')}</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -289,7 +279,7 @@ export function SubscribersList() {
                 className="shrink-0 px-3 sm:px-5 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center gap-2"
               >
                 {copiedCode ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                <span className="hidden sm:inline">{copiedCode ? 'Copied!' : 'Copy'}</span>
+                <span className="hidden sm:inline">{copiedCode ? t('copied', { ns: 'common' }) : t('copy', { ns: 'common' })}</span>
               </button>
             </div>
           </div>
@@ -299,17 +289,15 @@ export function SubscribersList() {
       <div className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/30 rounded-xl p-6">
         <div className="flex items-center space-x-3 mb-4">
           <UserPlus className="w-6 h-6 text-green-400" />
-          <h2 className="text-xl font-bold text-white">Add Friend by Code</h2>
+          <h2 className="text-xl font-bold text-white">{t('add_friend')}</h2>
         </div>
-        <p className="text-neutral-300 mb-4">
-          Enter a friend's invite code to subscribe to their parties.
-        </p>
+        <p className="text-neutral-300 mb-4">{t('add_friend_hint')}</p>
         <div className="flex gap-2">
           <input
             type="text"
             value={friendCode}
             onChange={(e) => setFriendCode(e.target.value.toUpperCase())}
-            placeholder="Enter invite code"
+            placeholder={t('enter_code')}
             className="flex-1 min-w-0 px-4 py-3 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition uppercase font-mono tracking-wider text-center text-xl"
             maxLength={8}
             onKeyDown={(e) => {
@@ -325,7 +313,7 @@ export function SubscribersList() {
             className="shrink-0 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UserPlus className="w-5 h-5" />
-            <span className="hidden sm:inline">{addingFriend ? 'Adding...' : 'Add'}</span>
+            <span className="hidden sm:inline">{addingFriend ? t('adding') : t('add', { ns: 'common' })}</span>
           </button>
         </div>
       </div>
@@ -335,14 +323,12 @@ export function SubscribersList() {
           <div className="flex items-center space-x-3 mb-6">
             <Users className="w-6 h-6 text-orange-400" />
             <h2 className="text-xl font-bold text-white">
-              My Subscribers ({subscribers.length})
+              {t('my_subscribers', { count: subscribers.length })}
             </h2>
           </div>
           <div className="space-y-3">
             {subscribers.length === 0 ? (
-              <p className="text-neutral-500 text-center py-8">
-                No subscribers yet. Share your invite link to get started!
-              </p>
+              <p className="text-neutral-500 text-center py-8">{t('no_subscribers')}</p>
             ) : (
               subscribers.map((sub) => (
                 <div
@@ -358,7 +344,7 @@ export function SubscribersList() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-white font-medium truncate">
-                      {sub.profiles.full_name || 'User'}
+                      {sub.profiles.full_name || t('user', { ns: 'common' })}
                     </div>
                     <div className="text-xs text-neutral-400 truncate">{sub.profiles.email}</div>
                   </div>
@@ -367,7 +353,7 @@ export function SubscribersList() {
                       <button
                         onClick={() => subscribeBack(sub.subscriber_id)}
                         className="p-1.5 rounded-lg text-green-400 hover:bg-green-500/10 transition"
-                        title="S'abonner en retour"
+                        title={t('subscribe_back')}
                       >
                         <UserPlus className="w-4 h-4" />
                       </button>
@@ -375,7 +361,7 @@ export function SubscribersList() {
                     <button
                       onClick={() => setConfirmKickId(sub.id)}
                       className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition"
-                      title="Retirer ce subscriber"
+                      title={t('remove_subscriber_title')}
                     >
                       <UserMinus className="w-4 h-4" />
                     </button>
@@ -390,14 +376,12 @@ export function SubscribersList() {
           <div className="flex items-center space-x-3 mb-6">
             <UserPlus className="w-6 h-6 text-orange-400" />
             <h2 className="text-xl font-bold text-white">
-              Subscribed To ({subscribedTo.length})
+              {t('subscribed_to', { count: subscribedTo.length })}
             </h2>
           </div>
           <div className="space-y-3">
             {subscribedTo.length === 0 ? (
-              <p className="text-neutral-500 text-center py-8">
-                Not subscribed to anyone yet. Use an invite link to connect!
-              </p>
+              <p className="text-neutral-500 text-center py-8">{t('no_subscribed')}</p>
             ) : (
               subscribedTo.map((sub) => (
                 <div
@@ -413,14 +397,14 @@ export function SubscribersList() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-white font-medium truncate">
-                      {sub.profiles.full_name || 'User'}
+                      {sub.profiles.full_name || t('user', { ns: 'common' })}
                     </div>
                     <div className="text-xs text-neutral-400 truncate">{sub.profiles.email}</div>
                   </div>
                   <button
                     onClick={() => setConfirmUnsubId(sub.id)}
                     className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition flex-shrink-0"
-                    title="Se désabonner"
+                    title={t('unsubscribe_title')}
                   >
                     <UserMinus className="w-4 h-4" />
                   </button>
@@ -430,11 +414,12 @@ export function SubscribersList() {
           </div>
         </div>
       </div>
+
       {showQR && (
         <QRModal
           url={`${window.location.origin}?invite=${inviteCode}`}
-          title="Mon invitation PartySync"
-          subtitle="Scanne pour m'ajouter comme ami"
+          title={t('qr_title')}
+          subtitle={t('qr_subtitle')}
           onClose={() => setShowQR(false)}
         />
       )}
@@ -443,12 +428,10 @@ export function SubscribersList() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <p className="text-white font-medium mb-1">
-              {confirmKickId ? 'Retirer ce subscriber ?' : 'Se désabonner ?'}
+              {confirmKickId ? t('remove_subscriber') : t('unsubscribe')}
             </p>
             <p className="text-neutral-400 text-sm mb-6">
-              {confirmKickId
-                ? 'Cette personne ne verra plus tes soirées.'
-                : 'Tu ne verras plus les soirées de cette personne.'}
+              {confirmKickId ? t('remove_subscriber_hint') : t('unsubscribe_hint')}
             </p>
             <div className="flex gap-3">
               <button
@@ -458,13 +441,13 @@ export function SubscribersList() {
                 }}
                 className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition"
               >
-                Confirmer
+                {t('confirm', { ns: 'common' })}
               </button>
               <button
                 onClick={() => { setConfirmKickId(null); setConfirmUnsubId(null); }}
                 className="flex-1 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl font-medium transition"
               >
-                Annuler
+                {t('cancel', { ns: 'common' })}
               </button>
             </div>
           </div>

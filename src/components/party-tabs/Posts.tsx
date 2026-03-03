@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Trash2, Send, BarChart2, Plus, X, Bell } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
@@ -36,7 +37,7 @@ interface PostsProps {
 const EMPTY_POLL_DRAFT = () => ({ question: '', options: ['', ''], deadline: '' });
 
 export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: PostsProps) {
-  // ── posts ──────────────────────────────────────────────────────────────
+  const { t } = useTranslation('activity');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
@@ -47,12 +48,10 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
   const [confirmDeletePostId, setConfirmDeletePostId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // ── polls ──────────────────────────────────────────────────────────────
   const [polls, setPolls] = useState<PollData[]>([]);
   const [showCreatePoll, setShowCreatePoll] = useState(false);
   const [pollDraft, setPollDraft] = useState(EMPTY_POLL_DRAFT());
   const [creatingPoll, setCreatingPoll] = useState(false);
-  // notify modal after poll creation
   const [showPollCreatedNotify, setShowPollCreatedNotify] = useState(false);
   const [pollCreatedMsg, setPollCreatedMsg] = useState('');
   const [pendingPollId, setPendingPollId] = useState<string | null>(null);
@@ -61,7 +60,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
   const { user } = useAuth();
   const isCreator = user?.id === creatorId;
 
-  // ── realtime + initial load ────────────────────────────────────────────
   useEffect(() => {
     loadPosts();
     loadPolls();
@@ -79,7 +77,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     return () => { supabase.removeChannel(channel); };
   }, [partyId]);
 
-  // ── mentionable users ──────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       const [{ data: guests }, { data: creatorProfile }] = await Promise.all([
@@ -104,7 +101,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     load();
   }, [partyId, creatorId]);
 
-  // ── deep-link highlight ────────────────────────────────────────────────
   useEffect(() => {
     if (!highlightPostId || posts.length === 0) return;
     const el = document.getElementById(`post-${highlightPostId}`);
@@ -114,7 +110,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     setTimeout(() => el.classList.remove('ring-2', 'ring-orange-400'), 3000);
   }, [highlightPostId, posts]);
 
-  // ── loaders ────────────────────────────────────────────────────────────
   const loadPosts = async () => {
     const { data, error } = await supabase
       .from('party_posts')
@@ -134,7 +129,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     setPolls((data as any) || []);
   };
 
-  // ── post handlers ──────────────────────────────────────────────────────
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setNewPost(value);
@@ -226,7 +220,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     setConfirmDeletePostId(null);
   };
 
-  // ── poll handlers ──────────────────────────────────────────────────────
   const addPollOption = () => {
     if (pollDraft.options.length >= 9) return;
     setPollDraft(d => ({ ...d, options: [...d.options, ''] }));
@@ -292,18 +285,16 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     }
   };
 
-  // ── helpers ────────────────────────────────────────────────────────────
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const diff = Date.now() - date.getTime();
+    const diff = Date.now() - new Date(dateString).getTime();
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-    if (mins < 1) return "à l'instant";
-    if (mins < 60) return `il y a ${mins} min`;
-    if (hours < 24) return `il y a ${hours}h`;
-    if (days < 7) return `il y a ${days}j`;
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    if (mins < 1) return t('time_now');
+    if (mins < 60) return t('time_min_ago_one', { count: mins });
+    if (hours < 24) return t('time_hours_ago_one', { count: hours });
+    if (days < 7) return t('time_days_ago_one', { count: days });
+    return new Date(dateString).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   };
 
   const renderContent = (text: string) => {
@@ -319,7 +310,6 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     ? mentionableUsers.filter(u => u.displayName.toLowerCase().includes(mentionQuery!))
     : [];
 
-  // ── combined feed ──────────────────────────────────────────────────────
   type FeedItem =
     | { kind: 'post'; data: Post }
     | { kind: 'poll'; data: PollData };
@@ -331,19 +321,19 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
 
   const pollDraftValid = pollDraft.question.trim() && pollDraft.options.filter(o => o.trim()).length >= 2;
 
-  if (loading) return <div className="text-center text-neutral-400 py-8">Chargement...</div>;
+  if (loading) return <div className="text-center text-neutral-400 py-8">{t('loading_posts')}</div>;
 
   return (
     <div className="space-y-4">
 
-      {/* ── Composer ── */}
+      {/* Composer */}
       <div className="bg-neutral-800 rounded-xl p-4">
         <div className="relative">
           <textarea
             ref={textareaRef}
             value={newPost}
             onChange={handleContentChange}
-            placeholder="Ecris quelque chose... (@mention pour notifier quelqu'un)"
+            placeholder={t('post_placeholder')}
             rows={3}
             maxLength={1000}
             className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 resize-none text-sm"
@@ -385,7 +375,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
               className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 hover:text-white rounded-lg text-xs font-medium transition"
             >
               <BarChart2 className="w-3.5 h-3.5" />
-              Sondage
+              {t('poll')}
             </button>
           </div>
           <button
@@ -394,16 +384,16 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
             className="flex items-center gap-2 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-40"
           >
             <Send className="w-3.5 h-3.5" />
-            {submitting ? 'Envoi...' : 'Publier'}
+            {submitting ? t('publishing') : t('publish')}
           </button>
         </div>
       </div>
 
-      {/* ── Combined feed ── */}
+      {/* Combined feed */}
       {feedItems.length === 0 ? (
         <div className="text-center text-neutral-500 py-12">
-          <p className="text-lg mb-1">Aucun post pour le moment</p>
-          <p className="text-sm">Sois le premier à poster !</p>
+          <p className="text-lg mb-1">{t('no_posts')}</p>
+          <p className="text-sm">{t('be_first')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -462,14 +452,14 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
         </div>
       )}
 
-      {/* ── Poll creation modal ── */}
+      {/* Poll creation modal */}
       {showCreatePoll && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <BarChart2 className="w-5 h-5 text-orange-400" />
-                Créer un sondage
+                {t('create_poll')}
               </h3>
               <button onClick={() => setShowCreatePoll(false)} className="p-1.5 text-neutral-500 hover:text-white hover:bg-neutral-800 rounded-lg transition">
                 <X className="w-4 h-4" />
@@ -477,23 +467,21 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
             </div>
 
             <div className="space-y-4">
-              {/* Question */}
               <div>
-                <label className="block text-sm font-medium text-neutral-400 mb-1.5">Question</label>
+                <label className="block text-sm font-medium text-neutral-400 mb-1.5">{t('poll_question')}</label>
                 <input
                   type="text"
                   value={pollDraft.question}
                   onChange={e => setPollDraft(d => ({ ...d, question: e.target.value }))}
-                  placeholder="Ex : Quel soir vous convient le mieux ?"
+                  placeholder={t('poll_question_placeholder')}
                   maxLength={200}
                   className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm"
                 />
               </div>
 
-              {/* Options */}
               <div>
                 <label className="block text-sm font-medium text-neutral-400 mb-2">
-                  Options <span className="text-neutral-600 font-normal">({pollDraft.options.length}/9)</span>
+                  {t('options')} <span className="text-neutral-600 font-normal">({pollDraft.options.length}/9)</span>
                 </label>
                 <div className="space-y-2">
                   {pollDraft.options.map((opt, i) => (
@@ -503,7 +491,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                         type="text"
                         value={opt}
                         onChange={e => setPollOption(i, e.target.value)}
-                        placeholder={`Option ${i + 1}`}
+                        placeholder={t('poll_option_placeholder', { n: i + 1 })}
                         maxLength={100}
                         className="flex-1 px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm"
                       />
@@ -524,15 +512,14 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                     className="mt-2 flex items-center gap-1.5 text-sm text-orange-400 hover:text-orange-300 transition"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Ajouter une option
+                    {t('add_option')}
                   </button>
                 )}
               </div>
 
-              {/* Deadline */}
               <div>
                 <label className="block text-sm font-medium text-neutral-400 mb-1.5">
-                  Date limite <span className="text-neutral-600 font-normal">(optionnel)</span>
+                  {t('deadline_optional')}
                 </label>
                 <input
                   type="datetime-local"
@@ -548,7 +535,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                 onClick={() => setShowCreatePoll(false)}
                 className="flex-1 px-4 py-2.5 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition text-sm font-medium"
               >
-                Annuler
+                {t('cancel', { ns: 'common' })}
               </button>
               <button
                 onClick={createPoll}
@@ -556,8 +543,8 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                 className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40"
               >
                 {creatingPoll
-                  ? <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>Création…</span></>
-                  : <><BarChart2 className="w-4 h-4" /><span>Créer le sondage</span></>
+                  ? <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>{t('creating_poll')}</span></>
+                  : <><BarChart2 className="w-4 h-4" /><span>{t('create_poll_btn')}</span></>
                 }
               </button>
             </div>
@@ -565,17 +552,15 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
         </div>
       )}
 
-      {/* ── Notify after poll creation ── */}
+      {/* Notify after poll creation */}
       {showPollCreatedNotify && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <h3 className="text-lg font-bold text-white mb-1">
               <Bell className="w-5 h-5 inline mr-2 text-orange-400" />
-              Notifier les invités ?
+              {t('notify_guests_poll')}
             </h3>
-            <p className="text-neutral-500 text-sm mb-4">
-              Envoie une notification pour les inviter à voter sur le sondage.
-            </p>
+            <p className="text-neutral-500 text-sm mb-4">{t('notify_guests_poll_hint')}</p>
             <textarea
               value={pollCreatedMsg}
               onChange={e => setPollCreatedMsg(e.target.value)}
@@ -589,7 +574,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                 disabled={notifyingPoll}
                 className="flex-1 px-4 py-2.5 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition text-sm font-medium disabled:opacity-50"
               >
-                Ignorer
+                {t('skip')}
               </button>
               <button
                 onClick={sendPollCreatedNotification}
@@ -597,8 +582,8 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
                 className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {notifyingPoll
-                  ? <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>Envoi…</span></>
-                  : <><Bell className="w-4 h-4" /><span>Notifier tous</span></>
+                  ? <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>{t('notifying')}</span></>
+                  : <><Bell className="w-4 h-4" /><span>{t('notify_all')}</span></>
                 }
               </button>
             </div>
@@ -606,24 +591,24 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
         </div>
       )}
 
-      {/* ── Delete post confirmation ── */}
+      {/* Delete post confirmation */}
       {confirmDeletePostId && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-800 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
-            <h3 className="text-white font-semibold text-lg">Supprimer ce post ?</h3>
-            <p className="text-neutral-400 text-sm">Ce post sera définitivement supprimé.</p>
+            <h3 className="text-white font-semibold text-lg">{t('delete_post')}</h3>
+            <p className="text-neutral-400 text-sm">{t('delete_post_hint')}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDeletePostId(null)}
                 className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl text-sm font-medium transition"
               >
-                Annuler
+                {t('cancel', { ns: 'common' })}
               </button>
               <button
                 onClick={() => deletePost(confirmDeletePostId)}
                 className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition"
               >
-                Supprimer
+                {t('delete', { ns: 'common' })}
               </button>
             </div>
           </div>

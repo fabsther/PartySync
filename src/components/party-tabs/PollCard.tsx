@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Trash2, Bell } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
@@ -25,29 +26,8 @@ interface PollCardProps {
   onDelete: (pollId: string) => void;
 }
 
-function formatTimeLeft(deadline: Date): string {
-  const diff = deadline.getTime() - Date.now();
-  if (diff <= 0) return 'Terminé';
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  if (days > 0) return `${days}j ${hours}h`;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  return `${mins}m`;
-}
-
-function formatTimeAgo(dateString: string): string {
-  const diff = Date.now() - new Date(dateString).getTime();
-  const mins = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (mins < 1) return "à l'instant";
-  if (mins < 60) return `il y a ${mins}m`;
-  if (hours < 24) return `il y a ${hours}h`;
-  return `il y a ${days}j`;
-}
-
 export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCardProps) {
+  const { t } = useTranslation('activity');
   const { user } = useAuth();
   const [votes, setVotes] = useState<{ user_id: string; option_index: number }[]>([]);
   const [myVote, setMyVote] = useState<number | null>(null);
@@ -63,6 +43,28 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
   const isDeadlinePassed = deadlineDate ? deadlineDate <= new Date() : false;
   const isPollCreator = user?.id === poll.user_id;
   const canDelete = user?.id === poll.user_id || user?.id === partyCreatorId;
+
+  const formatTimeLeft = (deadline: Date): string => {
+    const diff = deadline.getTime() - Date.now();
+    if (diff <= 0) return t('finished');
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if (days > 0) return `${days}j ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  };
+
+  const formatTimeAgo = (dateString: string): string => {
+    const diff = Date.now() - new Date(dateString).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return t('time_now');
+    if (mins < 60) return t('time_min_ago_one', { count: mins });
+    if (hours < 24) return t('time_hours_ago_one', { count: hours });
+    return t('time_days_ago_one', { count: days });
+  };
 
   const loadVotes = async () => {
     const { data } = await supabase
@@ -118,14 +120,13 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
     const total = votes.length;
     let defaultMsg: string;
     if (maxCount === 0 || total === 0) {
-      defaultMsg = `Le sondage "${poll.question}" est terminé — aucun vote.`;
+      defaultMsg = t('poll_results_no_votes', { question: poll.question });
     } else {
-      // find all tied winners
       const winners = poll.options.filter((_, i) => counts[i] === maxCount);
       if (winners.length === 1) {
-        defaultMsg = `Résultats du sondage "${poll.question}" : "${winners[0]}" en tête avec ${maxCount} vote${maxCount > 1 ? 's' : ''} sur ${total}.`;
+        defaultMsg = t('poll_results_winner', { count: maxCount, question: poll.question, winner: winners[0], total });
       } else {
-        defaultMsg = `Résultats du sondage "${poll.question}" : égalité entre "${winners.join('" et "')}" (${maxCount} vote${maxCount > 1 ? 's' : ''} chacun).`;
+        defaultMsg = t('poll_results_tie', { count: maxCount, question: poll.question, winners: winners.join('" et "') });
       }
     }
     setNotifyMessage(defaultMsg);
@@ -144,7 +145,7 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
         (guests || []).map(g =>
           sendRemoteNotification(
             g.user_id,
-            `📊 Résultats — ${partyTitle}`,
+            t('poll_results_notif_title', { partyTitle }),
             notifyMessage,
             { partyId: poll.party_id, pollId: poll.id, action: 'poll_results' },
             `/party/${poll.party_id}?tab=posts`
@@ -178,10 +179,10 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-xs font-bold text-orange-400 uppercase tracking-wide">📊 Sondage</span>
+              <span className="text-xs font-bold text-orange-400 uppercase tracking-wide">{t('poll_label')}</span>
               {deadlineDate && (
                 <span className={`text-xs tabular-nums ${isDeadlinePassed ? 'text-neutral-600' : 'text-orange-400'}`}>
-                  · {isDeadlinePassed ? 'Terminé' : `⏱ ${timeLeft}`}
+                  · {isDeadlinePassed ? t('finished') : `⏱ ${timeLeft}`}
                 </span>
               )}
             </div>
@@ -254,9 +255,9 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
         {/* Footer */}
         <div className="flex items-center justify-between">
           <span className="text-xs text-neutral-600">
-            {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
-            {!showResults && !isDeadlinePassed && ' · Vote pour voir les résultats'}
-            {myVote !== null && !isDeadlinePassed && ' · Tu peux changer ton vote'}
+            {t('votes', { count: totalVotes })}
+            {!showResults && !isDeadlinePassed && ` · ${t('vote_to_see')}`}
+            {myVote !== null && !isDeadlinePassed && ` · ${t('can_change_vote')}`}
           </span>
           {isPollCreator && isDeadlinePassed && (
             <button
@@ -264,7 +265,7 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
               className="flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition px-2 py-1 rounded-lg hover:bg-orange-500/10"
             >
               <Bell className="w-3 h-3" />
-              Annoncer les résultats
+              {t('announce_results')}
             </button>
           )}
         </div>
@@ -274,9 +275,9 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
       {showNotifyModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-1">📢 Annoncer les résultats</h3>
+            <h3 className="text-lg font-bold text-white mb-1">{t('announce_results_title')}</h3>
             <p className="text-neutral-500 text-sm mb-4">
-              Envoie une notification à tous les invités avec les résultats.
+              {t('announce_results_hint')}
             </p>
             <textarea
               value={notifyMessage}
@@ -291,7 +292,7 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
                 disabled={notifying}
                 className="flex-1 px-4 py-2.5 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition text-sm font-medium disabled:opacity-50"
               >
-                Annuler
+                {t('cancel', { ns: 'common' })}
               </button>
               <button
                 onClick={sendResultsNotification}
@@ -299,8 +300,8 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
                 className="flex-1 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl transition text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {notifying
-                  ? <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>Envoi…</span></>
-                  : <><Bell className="w-4 h-4" /><span>Notifier tous</span></>
+                  ? <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>{t('notifying')}</span></>
+                  : <><Bell className="w-4 h-4" /><span>{t('notify_all')}</span></>
                 }
               </button>
             </div>
@@ -312,20 +313,20 @@ export function PollCard({ poll, partyTitle, partyCreatorId, onDelete }: PollCar
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="text-white font-semibold text-lg mb-2">Supprimer ce sondage ?</h3>
-            <p className="text-neutral-400 text-sm mb-5">Tous les votes seront définitivement perdus.</p>
+            <h3 className="text-white font-semibold text-lg mb-2">{t('delete_poll')}</h3>
+            <p className="text-neutral-400 text-sm mb-5">{t('delete_poll_hint')}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(false)}
                 className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl text-sm font-medium transition"
               >
-                Annuler
+                {t('cancel', { ns: 'common' })}
               </button>
               <button
                 onClick={deletePoll}
                 className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition"
               >
-                Supprimer
+                {t('delete', { ns: 'common' })}
               </button>
             </div>
           </div>

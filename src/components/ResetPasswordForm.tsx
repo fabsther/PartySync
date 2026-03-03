@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { PartyPopper } from 'lucide-react';
 
 export function ResetPasswordForm() {
+  const { t } = useTranslation('auth');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
@@ -15,11 +17,11 @@ export function ResetPasswordForm() {
     setError('');
 
     if (password !== confirm) {
-      setError('Passwords do not match');
+      setError(t('passwords_no_match'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('password_too_short'));
       return;
     }
 
@@ -28,7 +30,7 @@ export function ResetPasswordForm() {
       await updatePassword(password);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('error_occurred', { ns: 'common' }));
     } finally {
       setLoading(false);
     }
@@ -44,19 +46,19 @@ export function ResetPasswordForm() {
             </div>
           </div>
           <h2 className="text-4xl font-bold text-white mb-2">PartySync</h2>
-          <p className="text-neutral-400">Set your new password</p>
+          <p className="text-neutral-400">{t('set_password_tagline')}</p>
         </div>
 
         {success ? (
           <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-4 text-green-400 text-sm text-center">
-            Password updated successfully! You are now logged in.
+            {t('password_updated')}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-8 space-y-6">
             <div className="space-y-4">
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-neutral-300 mb-2">
-                  New Password
+                  {t('new_password')}
                 </label>
                 <input
                   id="password"
@@ -65,12 +67,12 @@ export function ResetPasswordForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-                  placeholder="Enter new password"
+                  placeholder={t('new_password_placeholder')}
                 />
               </div>
               <div>
                 <label htmlFor="confirm" className="block text-sm font-medium text-neutral-300 mb-2">
-                  Confirm Password
+                  {t('confirm_password')}
                 </label>
                 <input
                   id="confirm"
@@ -79,7 +81,7 @@ export function ResetPasswordForm() {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   className="w-full px-4 py-3 bg-neutral-900 border border-neutral-800 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-                  placeholder="Confirm new password"
+                  placeholder={t('confirm_password_placeholder')}
                 />
               </div>
             </div>
@@ -95,7 +97,7 @@ export function ResetPasswordForm() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-neutral-950 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Updating...' : 'Set New Password'}
+              {loading ? t('updating') : t('set_new_password')}
             </button>
           </form>
         )}

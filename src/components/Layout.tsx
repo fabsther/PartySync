@@ -1,8 +1,10 @@
 import { ReactNode, useState } from 'react';
 import { PartyPopper, Users, CalendarDays, Menu, X, User, Download } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
+import { LanguageSelector } from '../components/LanguageSelector';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useTranslation } from 'react-i18next';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,8 +15,15 @@ interface LayoutProps {
 
 export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutProps) {
   const { user } = useAuth();
+  const { t } = useTranslation('common');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { canInstall, install } = usePWAInstall();
+
+  const navLinks = [
+    { id: 'parties' as const, label: t('parties'), icon: CalendarDays },
+    { id: 'subscribers' as const, label: t('subscribers'), icon: Users },
+    { id: 'profile' as const, label: t('profile'), icon: User },
+  ];
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
@@ -46,39 +55,20 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
 
             {/* Desktop nav tabs — center */}
             <div className="hidden md:flex items-center space-x-1">
-              <button
-                onClick={() => onTabChange('parties')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === 'parties'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <CalendarDays className="w-5 h-5 inline mr-2" />
-                Parties
-              </button>
-              <button
-                onClick={() => onTabChange('subscribers')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === 'subscribers'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <Users className="w-5 h-5 inline mr-2" />
-                Subscribers
-              </button>
-              <button
-                onClick={() => onTabChange('profile')}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  activeTab === 'profile'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <User className="w-5 h-5 inline mr-2" />
-                Profile
-              </button>
+              {navLinks.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => onTabChange(id)}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    activeTab === id
+                      ? 'bg-orange-500 text-white'
+                      : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 inline mr-2" />
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* Right: bell+install (desktop) / install+burger (mobile) */}
@@ -90,7 +80,7 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                 <button
                   onClick={install}
                   className="text-orange-400 hover:text-orange-300 p-2 rounded-lg hover:bg-neutral-800 transition"
-                  title="Installer l'app"
+                  title={t('install_app')}
                 >
                   <Download className="w-5 h-5" />
                 </button>
@@ -121,48 +111,32 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
             style={{ top: 'calc(4rem + env(safe-area-inset-top))' }}
           >
             <div className="px-4 py-3 space-y-2">
-              <button
-                onClick={() => { onTabChange('parties'); setMobileMenuOpen(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
-                  activeTab === 'parties'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <CalendarDays className="w-5 h-5 inline mr-2" />
-                Parties
-              </button>
-              <button
-                onClick={() => { onTabChange('subscribers'); setMobileMenuOpen(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
-                  activeTab === 'subscribers'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <Users className="w-5 h-5 inline mr-2" />
-                Subscribers
-              </button>
-              <button
-                onClick={() => { onTabChange('profile'); setMobileMenuOpen(false); }}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
-                  activeTab === 'profile'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
-                }`}
-              >
-                <User className="w-5 h-5 inline mr-2" />
-                Profile
-              </button>
+              {navLinks.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => { onTabChange(id); setMobileMenuOpen(false); }}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
+                    activeTab === id
+                      ? 'bg-orange-500 text-white'
+                      : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  }`}
+                >
+                  <Icon className="w-5 h-5 inline mr-2" />
+                  {label}
+                </button>
+              ))}
               {canInstall && (
                 <button
                   onClick={() => { install(); setMobileMenuOpen(false); }}
                   className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center space-x-2"
                 >
                   <Download className="w-5 h-5" />
-                  <span>Installer l'app</span>
+                  <span>{t('install_app')}</span>
                 </button>
               )}
+              <div className="pt-2 pb-1 px-1">
+                <LanguageSelector />
+              </div>
             </div>
           </div>
         </>

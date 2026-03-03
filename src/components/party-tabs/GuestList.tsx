@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UserPlus, Check, X, Clock, Bell } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
@@ -35,6 +36,7 @@ interface GuestListProps {
 }
 
 export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddress, partyDescription, partyDateFixed }: GuestListProps) {
+  const { t } = useTranslation('party');
   const [guests, setGuests] = useState<Guest[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -283,13 +285,13 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   };
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'Confirmed';
-      case 'declined':  return 'Declined';
-      default:          return 'Pending';
+      case 'confirmed': return t('status_confirmed');
+      case 'declined':  return t('status_declined');
+      default:          return t('status_pending');
     }
   };
 
-  if (loading) return <div className="text-center text-neutral-400">Loading guests...</div>;
+  if (loading) return <div className="text-center text-neutral-400">{t('loading_guests')}</div>;
   const myGuest = guests.find(g => g.user_id === user?.id);
 
   return (
@@ -302,13 +304,13 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
           >
             <UserPlus className="w-5 h-5" />
-            <span>Add Guest from Subscribers</span>
+            <span>{t('add_guest_subscribers')}</span>
           </button>
 
           {showSubscriberList && (
             <div className="mt-4 bg-neutral-800 rounded-lg p-4 space-y-2 max-h-64 overflow-y-auto">
               {subscribers.length === 0 ? (
-                <p className="text-neutral-500 text-center py-4">No subscribers available</p>
+                <p className="text-neutral-500 text-center py-4">{t('no_subscribers_available')}</p>
               ) : (
                 subscribers.map((sub: any) => {
                   const alreadyInvited = guests.some(g => g.user_id === sub.subscriber_id);
@@ -328,7 +330,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                         disabled={alreadyInvited || addingGuest}
                         className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {alreadyInvited ? 'Already Invited' : 'Add'}
+                        {alreadyInvited ? t('already_invited') : t('add', { ns: 'common' })}
                       </button>
                     </div>
                   );
@@ -341,10 +343,8 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
 
       {myGuest && myGuest.status === 'confirmed' && (
         <div className="bg-neutral-800 rounded-lg p-4">
-          <h4 className="text-white font-medium mb-3">Manage Companions</h4>
-          <p className="text-sm text-neutral-400 mb-3">
-            Add people you're bringing with you (family members, friends, etc.)
-          </p>
+          <h4 className="text-white font-medium mb-3">{t('manage_companions')}</h4>
+          <p className="text-sm text-neutral-400 mb-3">{t('companions_hint')}</p>
 
           {myGuest.guest_companions && myGuest.guest_companions.length > 0 && (
             <div className="mb-4 space-y-2">
@@ -355,7 +355,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                     onClick={() => removeCompanion(companion.id)}
                     className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm"
                   >
-                    Remove
+                    {t('remove')}
                   </button>
                 </div>
               ))}
@@ -367,7 +367,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
               type="text"
               value={newCompanionName}
               onChange={(e) => setNewCompanionName(e.target.value)}
-              placeholder="Companion's name"
+              placeholder={t('companion_name_placeholder')}
               className="flex-1 px-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -381,7 +381,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
               disabled={addingCompanion || !newCompanionName.trim()}
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add
+              {t('add', { ns: 'common' })}
             </button>
           </div>
         </div>
@@ -435,7 +435,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
               onClick={() => setShowCalendarPrompt(false)}
               className="w-full text-neutral-500 hover:text-neutral-300 text-sm transition py-1"
             >
-              Non merci
+              {t('no_thanks')}
             </button>
           </div>
         </div>
@@ -443,7 +443,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
 
       <div className="space-y-3">
         {guests.length === 0 ? (
-          <p className="text-neutral-500 text-center py-8">No guests yet</p>
+          <p className="text-neutral-500 text-center py-8">{t('no_guests_yet')}</p>
         ) : (
           guests.map((guest) => (
             <div
@@ -467,7 +467,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                     <div className="text-sm text-neutral-500">{getStatusText(guest.status)}</div>
                     {guest.guest_companions && guest.guest_companions.length > 0 && (
                       <div className="text-xs text-orange-400 mt-1">
-                        +{guest.guest_companions.length} companion{guest.guest_companions.length > 1 ? 's' : ''}: {guest.guest_companions.map(c => c.name).join(', ')}
+                        {t('companions_count', { count: guest.guest_companions.length })}: {guest.guest_companions.map(c => c.name).join(', ')}
                       </div>
                     )}
                   </div>
@@ -475,7 +475,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                 {isCreator && guest.status === 'invited' && guest.user_id !== user?.id && (
                   <button
                     onClick={() => pingGuest(guest)}
-                    title="Relancer cet invité"
+                    title={t('ping_guest_tooltip')}
                     className="flex-shrink-0 p-1.5 rounded-lg hover:bg-neutral-700 transition"
                   >
                     {pingedGuests.has(guest.id)
@@ -492,7 +492,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                       onClick={() => updateStatus(guest.id, 'confirmed')}
                       className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition text-sm"
                     >
-                      {guest.user_id === user?.id ? 'Accept' : 'Set Confirmed'}
+                      {guest.user_id === user?.id ? t('accept') : t('set_confirmed')}
                     </button>
                   )}
                   {guest.status !== 'declined' && (
@@ -500,7 +500,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                       onClick={() => updateStatus(guest.id, 'declined')}
                       className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition text-sm"
                     >
-                      {guest.user_id === user?.id ? 'Decline' : 'Set Declined'}
+                      {guest.user_id === user?.id ? t('decline') : t('set_declined')}
                     </button>
                   )}
                   {guest.status !== 'invited' && guest.user_id === user?.id && !isCreator && (
@@ -508,7 +508,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                       onClick={() => updateStatus(guest.id, 'invited')}
                       className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-sm"
                     >
-                      Reset
+                      {t('reset_status')}
                     </button>
                   )}
                   {isCreator && guest.status !== 'invited' && guest.user_id !== user?.id && (
@@ -516,7 +516,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                       onClick={() => updateStatus(guest.id, 'invited')}
                       className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition text-sm"
                     >
-                      Reset to Pending
+                      {t('reset_to_pending')}
                     </button>
                   )}
                 </div>

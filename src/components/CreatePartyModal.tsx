@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { X, ImagePlus, Smile } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadPartyMedia } from '../lib/uploadMedia';
@@ -10,6 +11,7 @@ interface CreatePartyModalProps {
 }
 
 export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) {
+  const { t } = useTranslation('party');
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +93,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create party');
+      setError(err instanceof Error ? err.message : t('error_occurred'));
     } finally {
       setLoading(false);
     }
@@ -101,7 +103,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-neutral-900 border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white">Create New Party</h2>
+          <h2 className="text-2xl font-bold text-white">{t('create_title')}</h2>
           <button
             onClick={onClose}
             className="text-neutral-400 hover:text-white p-2 hover:bg-neutral-800 rounded-lg transition"
@@ -115,7 +117,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
           {/* Banner */}
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Bannière <span className="text-neutral-500">(optionnel)</span>
+              {t('banner')} <span className="text-neutral-500">{t('optional', { ns: 'common' })}</span>
             </label>
             <div
               onClick={() => bannerRef.current?.click()}
@@ -126,7 +128,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
               ) : (
                 <div className="flex flex-col items-center gap-2 text-neutral-500">
                   <ImagePlus className="w-8 h-8" />
-                  <span className="text-sm">Cliquer pour ajouter une bannière</span>
+                  <span className="text-sm">{t('click_to_add_banner')}</span>
                 </div>
               )}
               {bannerPreview && (
@@ -152,7 +154,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
           <div className="flex items-center gap-4">
             <div>
               <label className="block text-sm font-medium text-neutral-300 mb-2">
-                Icône <span className="text-neutral-500">(optionnel)</span>
+                {t('icon_label')} <span className="text-neutral-500">{t('optional', { ns: 'common' })}</span>
               </label>
               <div
                 onClick={() => iconRef.current?.click()}
@@ -178,14 +180,14 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
                 onClick={() => { setIconFile(null); setIconPreview(null); }}
                 className="text-xs text-red-400 hover:text-red-300 mt-6"
               >
-                Supprimer
+                {t('delete', { ns: 'common' })}
               </button>
             )}
           </div>
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Party Title</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('party_title')}</label>
             <input
               type="text"
               required
@@ -198,7 +200,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Description</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('description')}</label>
             <textarea
               rows={3}
               value={formData.description}
@@ -218,13 +220,13 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
               className="w-4 h-4 rounded border-neutral-700 bg-neutral-800 text-orange-500 focus:ring-orange-500"
             />
             <label htmlFor="is_date_fixed" className="text-sm text-neutral-300">
-              Date is confirmed (uncheck if you want guests to vote on dates)
+              {t('date_confirmed')}
             </label>
           </div>
 
           {formData.is_date_fixed ? (
             <div>
-              <label className="block text-sm font-medium text-neutral-300 mb-2">Party Date & Time</label>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">{t('date_time')}</label>
               <input
                 type="datetime-local"
                 value={formData.fixed_date}
@@ -234,7 +236,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             </div>
           ) : (
             <div className="space-y-4 bg-neutral-800/50 border border-neutral-700 rounded-xl p-4">
-              <p className="text-sm text-neutral-400 font-medium">🗳️ Options de dates pour le vote</p>
+              <p className="text-sm text-neutral-400 font-medium">{t('date_options_title')}</p>
 
               {dateOptions.map((opt, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -254,7 +256,6 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
                       type="button"
                       onClick={() => setDateOptions(['', ''])}
                       className="p-2 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
-                      title="Supprimer l'option 3"
                     >
                       ✕
                     </button>
@@ -268,14 +269,14 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
                   onClick={() => setDateOptions([...dateOptions, ''])}
                   className="text-sm text-orange-400 hover:text-orange-300 transition"
                 >
-                  + Ajouter une 3ème option
+                  {t('add_third_option')}
                 </button>
               )}
 
               <div className="pt-1">
                 <label className="block text-sm font-medium text-neutral-400 mb-2">
-                  Deadline du vote
-                  <span className="text-neutral-600 font-normal ml-1">(date limite pour voter)</span>
+                  {t('vote_deadline_label')}
+                  <span className="text-neutral-600 font-normal ml-1">{t('vote_deadline_hint')}</span>
                 </label>
                 <input
                   type="datetime-local"
@@ -289,7 +290,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
 
           {/* Address */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Address</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('address')}</label>
             <input
               type="text"
               value={formData.address}
@@ -301,7 +302,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
 
           {/* Schedule */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Schedule</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('schedule')}</label>
             <textarea
               rows={2}
               value={formData.schedule}
@@ -313,7 +314,7 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
 
           {/* Entry instructions */}
           <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">Entry Instructions</label>
+            <label className="block text-sm font-medium text-neutral-300 mb-2">{t('entry_instructions')}</label>
             <textarea
               rows={2}
               value={formData.entry_instructions}
@@ -326,14 +327,14 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
           {/* Chat group link */}
           <div>
             <label className="block text-sm font-medium text-neutral-300 mb-2">
-              Lien groupe <span className="text-neutral-500">(WhatsApp, Telegram… — optionnel)</span>
+              {t('chat_group')} <span className="text-neutral-500">{t('chat_group_hint')}</span>
             </label>
             <input
               type="url"
               value={formData.chat_url}
               onChange={(e) => setFormData({ ...formData, chat_url: e.target.value })}
               className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-              placeholder="https://chat.whatsapp.com/..."
+              placeholder={t('chat_group_placeholder')}
             />
           </div>
 
@@ -349,14 +350,14 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
               onClick={onClose}
               className="flex-1 px-4 py-3 bg-neutral-800 text-white rounded-lg font-medium hover:bg-neutral-700 transition"
             >
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Party'}
+              {loading ? t('creating') : t('create_party')}
             </button>
           </div>
         </form>

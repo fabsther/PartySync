@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { CrowdfundIcon } from './Crowdfunding';
@@ -153,6 +154,7 @@ interface AddFoodToCrowdfundPopupProps {
 }
 
 function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFoodToCrowdfundPopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
 
   // Compute ratio from existing contributions
@@ -220,7 +222,7 @@ function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFood
       setSuccess(true);
       setTimeout(onClose, 800);
     } catch (e: any) {
-      setError(e.message || 'Erreur.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
@@ -230,19 +232,19 @@ function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFood
     <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col">
       <div className="flex items-center gap-3 px-4 py-4 border-b border-neutral-800">
         <button onClick={onClose} className="text-neutral-400 hover:text-white transition text-2xl leading-none">←</button>
-        <h2 className="text-white font-semibold text-lg">Ajouter à ma cagnotte</h2>
+        <h2 className="text-white font-semibold text-lg">{t('add_to_crowdfund_title')}</h2>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
         {error && <p className="text-red-400 text-sm">{error}</p>}
-        {success && <p className="text-green-400 text-sm">Ajouté !</p>}
+        {success && <p className="text-green-400 text-sm">{t('added_success')}</p>}
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Item</label>
+          <label className="block text-sm text-neutral-400">{t('food_item')}</label>
           <div className={disabledCls}>{item.name}</div>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Quantité</label>
+          <label className="block text-sm text-neutral-400">{t('quantity')}</label>
           <input
             type="number"
             min="1"
@@ -254,9 +256,11 @@ function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFood
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Pour combien de personnes ?</label>
+          <label className="block text-sm text-neutral-400">{t('for_how_many')}</label>
           {ratio !== null ? (
-            <div className={disabledCls}>{qty > 0 ? Math.round(qty * ratio) : '—'} pers. (auto)</div>
+            <div className={disabledCls}>
+              {qty > 0 ? t('auto_people', { n: Math.round(qty * ratio) }) : '—'}
+            </div>
           ) : (
             <input
               type="number"
@@ -270,7 +274,7 @@ function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFood
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm text-neutral-400">Prix total (€)</label>
+          <label className="block text-sm text-neutral-400">{t('total_price')} (€)</label>
           <input
             type="number"
             min="0"
@@ -288,7 +292,7 @@ function AddFoodToCrowdfundPopup({ item, partyId, guestCount, onClose }: AddFood
           disabled={saving || success}
           className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
         >
-          {saving ? 'Enregistrement…' : success ? '✅ Ajouté !' : 'Ajouter à ma cagnotte'}
+          {saving ? t('saving') : success ? t('added_success') : t('add_to_crowdfund_title')}
         </button>
       </div>
     </div>
@@ -307,6 +311,7 @@ interface AddItemPopupProps {
 }
 
 function AddItemPopup({ partyId, creatorId, existingNames, onClose, onSaved }: AddItemPopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -327,8 +332,8 @@ function AddItemPopup({ partyId, creatorId, existingNames, onClose, onSaved }: A
 
   const handleSave = async () => {
     if (!user) return;
-    if (!name.trim()) { setError('Nom requis.'); return; }
-    if (!isOwner && qty < 1) { setError('Tu dois apporter au moins 1 unité.'); return; }
+    if (!name.trim()) { setError(t('name_required')); return; }
+    if (!isOwner && qty < 1) { setError(t('min_one_unit')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -352,17 +357,17 @@ function AddItemPopup({ partyId, creatorId, existingNames, onClose, onSaved }: A
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.message || 'Erreur lors de la sauvegarde.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Popup title="Ajouter un item" onClose={onClose}>
+    <Popup title={t('add_item_title')} onClose={onClose}>
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      <Field label="Nom">
+      <Field label={t('name_label')}>
         <div className="relative">
           <input
             className={inputCls}
@@ -387,7 +392,7 @@ function AddItemPopup({ partyId, creatorId, existingNames, onClose, onSaved }: A
         </div>
       </Field>
 
-      <Field label={isOwner ? "J'en apporte (0 = placeholder)" : "J'en apporte (min. 1)"}>
+      <Field label={isOwner ? t('i_bring_owner') : t('i_bring_guest')}>
         <input
           className={inputCls}
           type="number"
@@ -400,7 +405,7 @@ function AddItemPopup({ partyId, creatorId, existingNames, onClose, onSaved }: A
       </Field>
 
       {qty > 0 && (
-        <Field label="Pour combien de personnes ?">
+        <Field label={t('for_how_many')}>
           <input
             className={inputCls}
             type="number"
@@ -418,7 +423,7 @@ function AddItemPopup({ partyId, creatorId, existingNames, onClose, onSaved }: A
         disabled={saving}
         className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
       >
-        {saving ? 'Enregistrement…' : 'Ajouter'}
+        {saving ? t('saving') : t('add_food')}
       </button>
     </Popup>
   );
@@ -435,6 +440,7 @@ interface ContributePopupProps {
 }
 
 function ContributePopup({ item, guestCount, onClose, onSaved }: ContributePopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [quantity, setQuantity] = useState('');
   const [peopleCovered, setPeopleCovered] = useState('');
@@ -457,7 +463,7 @@ function ContributePopup({ item, guestCount, onClose, onSaved }: ContributePopup
 
   const handleSave = async () => {
     if (!user) return;
-    if (qty < 1) { setError("Tu dois apporter au moins 1 unité."); return; }
+    if (qty < 1) { setError(t('min_one_unit')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -472,21 +478,21 @@ function ContributePopup({ item, guestCount, onClose, onSaved }: ContributePopup
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.message || 'Erreur.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Popup title={`Contribuer : ${item.name}`} onClose={onClose}>
+    <Popup title={t('contribute_to_item', { name: item.name })} onClose={onClose}>
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      <Field label="Nom">
+      <Field label={t('name_label')}>
         <div className={disabledCls}>{item.name}</div>
       </Field>
 
-      <Field label="J'en apporte (min. 1)">
+      <Field label={t('i_bring_guest')}>
         <input
           className={inputCls}
           type="number"
@@ -499,10 +505,10 @@ function ContributePopup({ item, guestCount, onClose, onSaved }: ContributePopup
         />
       </Field>
 
-      <Field label="Pour combien de personnes ?">
+      <Field label={t('for_how_many')}>
         {ratio !== null ? (
           <div className={disabledCls}>
-            {qty > 0 ? Math.round(qty * ratio) : '—'} pers. (calculé automatiquement)
+            {qty > 0 ? t('auto_people', { n: Math.round(qty * ratio) }) : '—'}
           </div>
         ) : (
           <input
@@ -522,7 +528,7 @@ function ContributePopup({ item, guestCount, onClose, onSaved }: ContributePopup
         disabled={saving}
         className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
       >
-        {saving ? 'Enregistrement…' : 'Confirmer'}
+        {saving ? t('saving') : t('confirm_participation')}
       </button>
     </Popup>
   );
@@ -540,10 +546,10 @@ interface EditContributionPopupProps {
 }
 
 function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }: EditContributionPopupProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const myContrib = item.food_contributions.find((c) => c.user_id === user?.id);
   const isOwner = user?.id === creatorId;
-  const isItemCreator = user?.id === item.created_by;
 
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(String(myContrib?.quantity ?? ''));
@@ -597,7 +603,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.message || 'Erreur.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
@@ -612,7 +618,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.message || 'Erreur.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
@@ -624,7 +630,6 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
   const handleDeleteItem = async () => {
     setSaving(true);
     try {
-      // Delete contributions first (in case no cascade)
       if (isSoleContributor && myContrib) {
         await supabase.from('food_contributions').delete().eq('id', myContrib.id);
       }
@@ -633,17 +638,17 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
       onSaved();
       onClose();
     } catch (e: any) {
-      setError(e.message || 'Erreur lors de la suppression.');
+      setError(e.message || t('error'));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Popup title={`Modifier : ${item.name}`} onClose={onClose}>
+    <Popup title={t('edit_item_title', { name: item.name })} onClose={onClose}>
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
-      <Field label="Nom">
+      <Field label={t('name_label')}>
         {canEditName ? (
           <input
             className={inputCls}
@@ -655,7 +660,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
         )}
       </Field>
 
-      <Field label="J'en apporte">
+      <Field label={t('i_bring_edit')}>
         <input
           className={inputCls}
           type="number"
@@ -667,7 +672,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
       </Field>
 
       {qty > 0 && (
-        <Field label="Pour combien de personnes ?">
+        <Field label={t('for_how_many')}>
           {canEditPeople ? (
             <input
               className={inputCls}
@@ -679,7 +684,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
             />
           ) : (
             <div className={disabledCls}>
-              {ratio !== null ? Math.round(qty * ratio) : '—'} pers. (calculé automatiquement)
+              {ratio !== null ? t('auto_people', { n: Math.round(qty * ratio) }) : '—'}
             </div>
           )}
         </Field>
@@ -690,7 +695,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
         disabled={saving}
         className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition disabled:opacity-50"
       >
-        {saving ? 'Enregistrement…' : 'Sauvegarder'}
+        {saving ? t('saving') : t('save', { ns: 'common' })}
       </button>
 
       {myContrib && (
@@ -699,7 +704,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
           disabled={saving}
           className="w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-red-400 rounded-xl font-medium transition disabled:opacity-50"
         >
-          Supprimer ma contribution
+          {t('delete_contribution_btn')}
         </button>
       )}
 
@@ -709,7 +714,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
           disabled={saving}
           className="w-full py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl font-medium transition disabled:opacity-50"
         >
-          Supprimer cet item
+          {t('delete_item_btn')}
         </button>
       )}
     </Popup>
@@ -720,6 +725,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
 // Main component
 // ============================
 export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
+  const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [guestCount, setGuestCount] = useState(0);
@@ -746,7 +752,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
       .from('food_items')
       .select('id, name, created_by, food_contributions(id, user_id, quantity, people_covered, profiles(full_name, email))')
       .eq('party_id', partyId);
-    if (error) { setError('Impossible de charger les items.'); return; }
+    if (error) { setError(t('load_error_food')); return; }
     setFoodItems((data as FoodItem[]) || []);
   }, [partyId]);
 
@@ -783,25 +789,24 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-neutral-400">
-          {guestCount > 0 ? `${guestCount} personnes confirmées` : 'Aucun invité confirmé'}
+          {guestCount > 0 ? t('confirmed_people', { count: guestCount }) : t('no_guests_confirmed')}
         </div>
         <button
           onClick={() => setShowAddPopup(true)}
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition"
         >
           <Plus className="w-4 h-4" />
-          Ajouter
+          {t('add_food')}
         </button>
       </div>
 
       {/* Item list */}
       {sortedItems.length === 0 ? (
-        <p className="text-neutral-500 text-center py-12">Aucun item ajouté — soyez le premier !</p>
+        <p className="text-neutral-500 text-center py-12">{t('no_food_items')}</p>
       ) : (
         <div className="space-y-2">
           {sortedItems.map((item) => {
             const totalCovered = item.food_contributions.reduce((s, c) => s + c.people_covered, 0);
-            const deficit = guestCount - totalCovered;
             const ratio = guestCount > 0 ? totalCovered / guestCount : totalCovered > 0 ? 1 : 0;
             const color = computeCoverageColor(ratio);
 
@@ -824,7 +829,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
 
                 {/* Coverage */}
                 <div className="text-sm font-semibold tabular-nums flex-shrink-0" style={{ color }}>
-                  {Math.round(totalCovered)}/{guestCount} pers.
+                  {Math.round(totalCovered)}/{guestCount} {t('pers_label')}
                 </div>
 
                 {/* Avatars */}
@@ -837,7 +842,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                   <button
                     onClick={() => setCrowdfundFoodItem(item)}
                     className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/20 rounded-lg transition"
-                    title="Ajouter à ma cagnotte"
+                    title={t('add_to_crowdfund_title')}
                   >
                     <CrowdfundIcon className="w-4 h-4" />
                   </button>
@@ -845,7 +850,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                     <button
                       onClick={() => setEditItem(item)}
                       className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-lg transition"
-                      title="Modifier"
+                      title={t('edit', { ns: 'common' })}
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
@@ -853,7 +858,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
                     <button
                       onClick={() => setContributeItem(item)}
                       className="p-2 text-orange-400 hover:text-orange-300 hover:bg-orange-500/20 rounded-lg transition"
-                      title="Contribuer"
+                      title={t('contribute')}
                     >
                       <Plus className="w-4 h-4" />
                     </button>
