@@ -153,5 +153,7 @@
   "remove": "Retirer",
   "no_thanks": "Non merci",
   "loading_guests": "Chargement des invités…",
-  "ping_guest_tooltip": "Relancer cet invité"
+  "ping_guest_tooltip": "Relancer cet invité",
+  "guests_present_one": "{{count}} invité présent",
+  "guests_present_other": "{{count}} invités présents"
 }

@@ -153,5 +153,7 @@
   "remove": "Quitar",
   "no_thanks": "No, gracias",
   "loading_guests": "Cargando invitados…",
-  "ping_guest_tooltip": "Recordar a este invitado"
+  "ping_guest_tooltip": "Recordar a este invitado",
+  "guests_present_one": "{{count}} invitado presente",
+  "guests_present_other": "{{count}} invitados presentes"
 }

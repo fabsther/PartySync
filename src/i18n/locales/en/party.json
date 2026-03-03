@@ -153,5 +153,7 @@
   "remove": "Remove",
   "no_thanks": "No thanks",
   "loading_guests": "Loading guests…",
-  "ping_guest_tooltip": "Nudge this guest"
+  "ping_guest_tooltip": "Nudge this guest",
+  "guests_present_one": "{{count}} guest attending",
+  "guests_present_other": "{{count}} guests attending"
 }
