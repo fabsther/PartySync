@@ -81,15 +81,15 @@ export function AdminPage() {
   const loadData = async () => {
     if (!user) return;
     setLoading(true);
-    const [profilesRes, subscribersRes, pushRes, guestsRes] = await Promise.all([
+    const [profilesRes, subscribersRes, installsRes, guestsRes] = await Promise.all([
       supabase.from('profiles').select('id, email, full_name, avatar_url, created_at').order('created_at'),
       supabase.from('subscribers').select('subscriber_id').eq('user_id', user.id),
-      supabase.from('push_subscriptions').select('user_id'),
+      supabase.from('app_installs').select('user_id'),
       supabase.from('party_guests').select('user_id').eq('status', 'confirmed'),
     ]);
     setMembers(profilesRes.data || []);
     setSubscribedIds(new Set((subscribersRes.data || []).map((s: any) => s.subscriber_id)));
-    setPushIds(new Set((pushRes.data || []).map((p: any) => p.user_id)));
+    setPushIds(new Set((installsRes.data || []).map((p: any) => p.user_id)));
     setConfirmedGuestIds(new Set((guestsRes.data || []).map((g: any) => g.user_id)));
     setLoading(false);
   };
@@ -172,7 +172,7 @@ export function AdminPage() {
             onChange={setFilterSubscribed}
           />
           <FilterGroup
-            label="App installée *"
+            label="App installée"
             icon={Smartphone}
             value={filterAppInstalled}
             onChange={setFilterAppInstalled}
@@ -184,7 +184,6 @@ export function AdminPage() {
             onChange={setFilterParticipated}
           />
         </div>
-        <p className="text-xs text-neutral-600">* proxy via push notifications — voir plan de détection réelle</p>
       </div>
 
       {/* Results header + actions */}

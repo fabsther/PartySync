@@ -227,6 +227,29 @@ function AppContent() {
     }
   }, [user]);
 
+  // Détection app installée → upsert dans app_installs
+  useEffect(() => {
+    if (!user) return;
+
+    const upsertInstall = (fields: { installed_at?: string; last_seen_standalone?: string }) =>
+      supabase.from('app_installs').upsert({ user_id: user.id, ...fields }, { onConflict: 'user_id' });
+
+    // Détecter ouverture en mode standalone (PWA installée et lancée depuis l'icône)
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      !!(window.navigator as any).standalone;
+    if (isStandalone) {
+      upsertInstall({ last_seen_standalone: new Date().toISOString() });
+    }
+
+    // Écouter l'événement d'installation (Android/desktop Chrome)
+    const handleAppInstalled = () => {
+      upsertInstall({ installed_at: new Date().toISOString(), last_seen_standalone: new Date().toISOString() });
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => window.removeEventListener('appinstalled', handleAppInstalled);
+  }, [user]);
+
   // Notifications : enregistrement au login + ré-enregistrement si le SW signale un changement
   useEffect(() => {
     if (!user || !checkNotificationSupport()) return;
