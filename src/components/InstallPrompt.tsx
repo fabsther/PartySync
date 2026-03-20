@@ -2,20 +2,15 @@ import { useState, useEffect } from 'react';
 import { Download, X, Bell, Copy, Check } from 'lucide-react';
 import { isIOS, isIOSSafari, isStandalone } from '../lib/platform';
 import { registerNotificationToken } from '../lib/notifications';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface InstallPromptProps {
   userId?: string;
 }
 
 export function InstallPrompt({ userId }: InstallPromptProps) {
-  // ── Android / desktop install prompt ─────────────────────────────────────
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showAndroidBanner, setShowAndroidBanner] = useState(false);
+  // ── Android / desktop: délègue entièrement à usePWAInstall (source unique) ─
+  const { canInstall, install } = usePWAInstall();
 
   // ── iOS banners ───────────────────────────────────────────────────────────
   const [showIOSInstall, setShowIOSInstall] = useState(false);
@@ -25,14 +20,6 @@ export function InstallPrompt({ userId }: InstallPromptProps) {
   const [urlCopied, setUrlCopied] = useState(false);
 
   useEffect(() => {
-    // Android / desktop: listen for browser install prompt
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowAndroidBanner(true);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-
     // iOS: show install instructions if not yet installed
     if (isIOS() && !isStandalone()) {
       const dismissed = localStorage.getItem('ios-install-dismissed');
@@ -51,25 +38,16 @@ export function InstallPrompt({ userId }: InstallPromptProps) {
       const dismissed = localStorage.getItem('ios-notif-dismissed');
       const permission = 'Notification' in window ? Notification.permission : 'denied';
       if (!dismissed && permission === 'default') {
-        // Small delay so it doesn't flash on screen instantly
         const t = setTimeout(() => setShowIOSNotif(true), 2500);
-        return () => {
-          clearTimeout(t);
-          window.removeEventListener('beforeinstallprompt', handler);
-        };
+        return () => clearTimeout(t);
       }
     }
-
-    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, [userId]);
 
-  // ── Android / desktop handlers ────────────────────────────────────────────
+  // ── Android / desktop handler ─────────────────────────────────────────────
   const handleAndroidInstall = async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') setShowAndroidBanner(false);
-    setDeferredPrompt(null);
+    await install(); // usePWAInstall gère le prompt + met canInstall=false si accepté
+    // App.tsx capte l'event `appinstalled` et upsert dans app_installs
   };
 
   // ── Copy URL (for iOS non-Safari case) ───────────────────────────────────
@@ -102,7 +80,7 @@ export function InstallPrompt({ userId }: InstallPromptProps) {
   };
 
   // ── Android banner ────────────────────────────────────────────────────────
-  if (showAndroidBanner) {
+  if (canInstall) {
     return (
       <div className="fixed bottom-4 left-4 right-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-2xl z-50 animate-slide-up">
         <button
