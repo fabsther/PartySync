@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isStandalone } from './platform';
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
@@ -118,7 +119,7 @@ async function registerPushSubscription(userId: string): Promise<boolean> {
     const { error } = await supabase
       .from('push_subscriptions')
       .upsert(
-        { user_id: userId, endpoint, p256dh, auth, ua: navigator.userAgent },
+        { user_id: userId, endpoint, p256dh, auth, ua: navigator.userAgent, is_standalone: isStandalone() },
         { onConflict: 'endpoint' }
       );
 
@@ -186,6 +187,14 @@ export async function sendLocalNotification(title: string, body: string, data?: 
 
 export function checkNotificationSupport(): boolean {
   return 'Notification' in window && 'serviceWorker' in navigator;
+}
+
+export async function cleanupPushSubs(userId: string, keepStandalone: boolean) {
+  await supabase
+    .from('push_subscriptions')
+    .delete()
+    .eq('user_id', userId)
+    .eq('is_standalone', !keepStandalone);
 }
 
 export async function unregisterPushSubscription(userId: string): Promise<boolean> {

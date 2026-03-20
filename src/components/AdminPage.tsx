@@ -59,7 +59,7 @@ export function AdminPage() {
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [subscribedIds, setSubscribedIds] = useState<Set<string>>(new Set());
-  const [pushIds, setPushIds] = useState<Set<string>>(new Set());
+  const [installsMap, setInstallsMap] = useState<Map<string, { last_seen_standalone: string | null; last_seen_browser: string | null }>>(new Map());
   const [confirmedGuestIds, setConfirmedGuestIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -84,21 +84,28 @@ export function AdminPage() {
     const [profilesRes, subscribersRes, installsRes, guestsRes] = await Promise.all([
       supabase.from('profiles').select('id, email, full_name, avatar_url, created_at').order('created_at'),
       supabase.from('subscribers').select('subscriber_id').eq('user_id', user.id),
-      supabase.from('app_installs').select('user_id'),
+      supabase.from('app_installs').select('user_id, last_seen_standalone, last_seen_browser'),
       supabase.from('party_guests').select('user_id').eq('status', 'confirmed'),
     ]);
     setMembers(profilesRes.data || []);
     setSubscribedIds(new Set((subscribersRes.data || []).map((s: any) => s.subscriber_id)));
-    setPushIds(new Set((installsRes.data || []).map((p: any) => p.user_id)));
+    setInstallsMap(new Map((installsRes.data || []).map((p: any) => [p.user_id, { last_seen_standalone: p.last_seen_standalone ?? null, last_seen_browser: p.last_seen_browser ?? null }])));
     setConfirmedGuestIds(new Set((guestsRes.data || []).map((g: any) => g.user_id)));
     setLoading(false);
+  };
+
+  const isInstalled = (userId: string) => {
+    const record = installsMap.get(userId);
+    if (!record?.last_seen_standalone) return false;
+    if (!record.last_seen_browser) return true;
+    return new Date(record.last_seen_standalone) > new Date(record.last_seen_browser);
   };
 
   const filteredMembers = members.filter((m) => {
     if (filterSubscribed === 'yes' && !subscribedIds.has(m.id)) return false;
     if (filterSubscribed === 'no' && subscribedIds.has(m.id)) return false;
-    if (filterAppInstalled === 'yes' && !pushIds.has(m.id)) return false;
-    if (filterAppInstalled === 'no' && pushIds.has(m.id)) return false;
+    if (filterAppInstalled === 'yes' && !isInstalled(m.id)) return false;
+    if (filterAppInstalled === 'no' && isInstalled(m.id)) return false;
     if (filterParticipated === 'yes' && !confirmedGuestIds.has(m.id)) return false;
     if (filterParticipated === 'no' && confirmedGuestIds.has(m.id)) return false;
     return true;
@@ -118,7 +125,7 @@ export function AdminPage() {
   };
 
   const handleSendNotif = async () => {
-    const targets = filteredMembers.filter((m) => pushIds.has(m.id));
+    const targets = filteredMembers.filter((m) => isInstalled(m.id));
     if (targets.length === 0) return;
     setSending(true);
     setSentCount(0);
@@ -136,7 +143,7 @@ export function AdminPage() {
     return local || email.split('@')[0];
   };
 
-  const pushTargetCount = filteredMembers.filter((m) => pushIds.has(m.id)).length;
+  const pushTargetCount = filteredMembers.filter((m) => isInstalled(m.id)).length;
 
   return (
     <div className="space-y-6">
@@ -248,7 +255,7 @@ export function AdminPage() {
                       {/* Mobile badges */}
                       <div className="flex gap-1 ml-auto sm:hidden">
                         {subscribedIds.has(m.id) && <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Abo</span>}
-                        {pushIds.has(m.id) && <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">App</span>}
+                        {isInstalled(m.id) && <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">App</span>}
                         {confirmedGuestIds.has(m.id) && <span className="text-xs bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded">Part</span>}
                       </div>
                     </div>
@@ -259,7 +266,7 @@ export function AdminPage() {
                       : <X className="w-4 h-4 text-neutral-700 mx-auto" />}
                   </td>
                   <td className="px-4 py-3 text-center hidden sm:table-cell">
-                    {pushIds.has(m.id)
+                    {isInstalled(m.id)
                       ? <Check className="w-4 h-4 text-green-400 mx-auto" />
                       : <X className="w-4 h-4 text-neutral-700 mx-auto" />}
                   </td>

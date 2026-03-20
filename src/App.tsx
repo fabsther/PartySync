@@ -8,10 +8,10 @@ import { CreatePartyModal } from './components/CreatePartyModal';
 import { SubscribersList } from './components/SubscribersList';
 import { Profile } from './components/Profile';
 import { supabase } from './lib/supabase';
-import { registerNotificationToken, checkNotificationSupport } from './lib/notifications';
+import { registerNotificationToken, checkNotificationSupport, cleanupPushSubs } from './lib/notifications';
 import { sendRemoteNotification } from './lib/remoteNotify';
 import { InstallPrompt } from './components/InstallPrompt';
-import { isIOS } from './lib/platform';
+import { isIOS, isStandalone } from './lib/platform';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { checkAndSendFoodReminders } from './lib/foodReminders';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
@@ -117,13 +117,10 @@ function PingRsvpModal({
 // OAuth) don't always hand the redirect back to the PWA — the user ends up in the
 // browser with a URL bar instead of the app.
 function checkOAuthBrowserModeWarning() {
-  const isStandalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    !!(window.navigator as any).standalone;
   const params = new URLSearchParams(window.location.search);
   const hasOAuthCode = params.has('code');
   const hasAccessToken = window.location.hash.includes('access_token=');
-  return !isStandalone && (hasOAuthCode || hasAccessToken);
+  return !isStandalone() && (hasOAuthCode || hasAccessToken);
 }
 
 function AppContent() {
@@ -142,6 +139,7 @@ function AppContent() {
   const [pingContext, setPingContext] = useState<PingContext | null>(null);
   const [initialPostId, setInitialPostId] = useState<string | null>(null);
   const [initialTab, setInitialTab] = useState<string | null>(null);
+  const [wasInstalled, setWasInstalled] = useState(false);
 
   // Vérifier si l'utilisateur est admin
   useEffect(() => {
@@ -227,24 +225,40 @@ function AppContent() {
     }
   }, [user]);
 
-  // Détection app installée → upsert dans app_installs
+  // Détection app installée → upsert dans app_installs + cleanup push subs
   useEffect(() => {
     if (!user) return;
 
-    const upsertInstall = (fields: { installed_at?: string; last_seen_standalone?: string }) =>
-      supabase.from('app_installs').upsert({ user_id: user.id, ...fields }, { onConflict: 'user_id' });
-
-    // Détecter ouverture en mode standalone (PWA installée et lancée depuis l'icône)
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      !!(window.navigator as any).standalone;
-    if (isStandalone) {
-      upsertInstall({ last_seen_standalone: new Date().toISOString() });
+    const standalone = isStandalone();
+    if (standalone) {
+      supabase.from('app_installs').upsert(
+        { user_id: user.id, last_seen_standalone: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+      cleanupPushSubs(user.id, true);
+    } else {
+      supabase.from('app_installs')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setWasInstalled(true);
+            supabase.from('app_installs').upsert(
+              { user_id: user.id, last_seen_browser: new Date().toISOString() },
+              { onConflict: 'user_id' }
+            );
+            cleanupPushSubs(user.id, false);
+          }
+        });
     }
 
-    // Écouter l'événement d'installation (Android/desktop Chrome)
     const handleAppInstalled = () => {
-      upsertInstall({ installed_at: new Date().toISOString(), last_seen_standalone: new Date().toISOString() });
+      supabase.from('app_installs').upsert(
+        { user_id: user.id, installed_at: new Date().toISOString(), last_seen_standalone: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+      cleanupPushSubs(user.id, true);
     };
     window.addEventListener('appinstalled', handleAppInstalled);
     return () => window.removeEventListener('appinstalled', handleAppInstalled);
@@ -463,7 +477,7 @@ function AppContent() {
         />
       )}
 
-      <InstallPrompt userId={user?.id} />
+      <InstallPrompt userId={user?.id} wasInstalled={wasInstalled} />
 
       {welcomeParty && (
         <WelcomePartyModal
