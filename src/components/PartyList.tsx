@@ -96,13 +96,17 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
       </div>
       ) : (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {visibleParties.map((party) => (
+      {visibleParties.map((party) => {
+        const isPast = !!(party.fixed_date && new Date(party.fixed_date) < now);
+        return (
         <button
           key={party.id}
           onClick={() => onSelectParty(party.id)}
           className={`relative border rounded-xl overflow-hidden transition-all text-left group ${
             party.cancelled_at
               ? 'border-red-500/30 opacity-70 hover:border-red-500/50'
+              : isPast
+              ? 'border-neutral-800 opacity-40 hover:opacity-60 hover:border-neutral-600'
               : 'border-neutral-800 hover:border-orange-500'
           }`}
         >
@@ -131,7 +135,7 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
                     className={`w-8 h-8 rounded-lg object-cover flex-shrink-0 ${party.banner_url ? '-mt-10 border-2 border-neutral-900' : ''}`}
                   />
                 )}
-                <h3 className={`text-xl font-semibold transition truncate ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white group-hover:text-orange-400'}`}>
+                <h3 className={`text-xl font-semibold transition truncate ${party.cancelled_at ? 'text-neutral-400 line-through' : isPast ? 'text-neutral-500' : 'text-white group-hover:text-orange-400'}`}>
                   {party.title}
                 </h3>
               </div>
@@ -166,7 +170,8 @@ export function PartyList({ onSelectParty, onCreateParty }: PartyListProps) {
             </div>
           </div>
         </button>
-      ))}
+        );
+      })}
     </div>
       )}
     </div>

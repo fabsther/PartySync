@@ -89,6 +89,40 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   };
 
 
+  const addAllSubscribers = async () => {
+    const uninvited = subscribers.filter(sub => !guests.some(g => g.user_id === sub.subscriber_id));
+    if (uninvited.length === 0) return;
+
+    setAddingGuest(true);
+    try {
+      const { data: partyData } = await supabase.from('parties').select('title').eq('id', partyId).maybeSingle();
+      for (const sub of uninvited) {
+        const { error } = await supabase.from('party_guests').insert({
+          party_id: partyId,
+          user_id: sub.subscriber_id,
+          status: 'invited',
+        });
+        if (!error) {
+          await sendRemoteNotification(
+            sub.subscriber_id,
+            '🎉 Invitation à une fête',
+            partyData?.title
+              ? `Tu es invité·e à « ${partyData.title} ». Dis-nous si tu viens !`
+              : `Tu es invité·e à une fête. Dis-nous si tu viens !`,
+            { partyId, action: 'party_invitation' },
+            `/party/${partyId}?tab=guests`
+          );
+        }
+      }
+      setShowSubscriberList(false);
+      loadGuests();
+    } catch (err) {
+      console.error('Error adding all guests:', err);
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
   const addGuestFromList = async (targetUserId: string) => {
     setAddingGuest(true);
     try {
@@ -304,7 +338,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
           >
             <UserPlus className="w-5 h-5" />
-            <span>{t('add_guest_subscribers')}</span>
+            <span>{t('invite_subscribers')}</span>
           </button>
 
           {showSubscriberList && (
@@ -312,7 +346,18 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
               {subscribers.length === 0 ? (
                 <p className="text-neutral-500 text-center py-4">{t('no_subscribers_available')}</p>
               ) : (
-                subscribers.map((sub: any) => {
+                <>
+                  <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded">
+                    <span className="text-orange-300 font-medium text-sm">{t('invite_all_subscribers')}</span>
+                    <button
+                      onClick={addAllSubscribers}
+                      disabled={addingGuest || subscribers.every(sub => guests.some(g => g.user_id === sub.subscriber_id))}
+                      className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t('add', { ns: 'common' })}
+                    </button>
+                  </div>
+                  {subscribers.map((sub: any) => {
                   const alreadyInvited = guests.some(g => g.user_id === sub.subscriber_id);
                   return (
                     <div
@@ -334,7 +379,8 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
                       </button>
                     </div>
                   );
-                })
+                })}
+                </>
               )}
             </div>
           )}
