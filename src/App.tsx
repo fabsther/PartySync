@@ -16,6 +16,7 @@ import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { checkAndSendFoodReminders } from './lib/foodReminders';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { AdminPage } from './components/AdminPage';
 
 interface PingContext {
   partyId: string;
@@ -132,7 +133,8 @@ function AppContent() {
 
   const showBrowserModeWarning = checkOAuthBrowserModeWarning();
   const { user, loading, isRecovering } = useAuth();
-  const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile'>('parties');
+  const [activeTab, setActiveTab] = useState<'parties' | 'subscribers' | 'profile' | 'admin'>('parties');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -140,6 +142,13 @@ function AppContent() {
   const [pingContext, setPingContext] = useState<PingContext | null>(null);
   const [initialPostId, setInitialPostId] = useState<string | null>(null);
   const [initialTab, setInitialTab] = useState<string | null>(null);
+
+  // Vérifier si l'utilisateur est admin
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   // Sauvegarder les params d'invitation en sessionStorage dès le chargement de la page,
   // pour qu'ils survivent au flux login/signup (au cas où le navigateur modifie l'URL)
@@ -375,9 +384,9 @@ function AppContent() {
     );
   }
 
-  const handleTabChange = (tab: 'parties' | 'subscribers' | 'profile') => {
+  const handleTabChange = (tab: 'parties' | 'subscribers' | 'profile' | 'admin') => {
     setActiveTab(tab);
-    if (tab === 'subscribers' || tab === 'profile') {
+    if (tab !== 'parties') {
       setSelectedPartyId(null);
     }
   };
@@ -395,6 +404,7 @@ function AppContent() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onNavigate={handleNavigateFromNotif}
+        isAdmin={isAdmin}
       >
         {selectedPartyId ? (
           <PartyDetail
@@ -413,6 +423,8 @@ function AppContent() {
           <PartyList key={refreshKey} onSelectParty={setSelectedPartyId} onCreateParty={() => setShowCreateModal(true)} />
         ) : activeTab === 'subscribers' ? (
           <SubscribersList />
+        ) : activeTab === 'admin' && isAdmin ? (
+          <AdminPage />
         ) : (
           <Profile />
         )}

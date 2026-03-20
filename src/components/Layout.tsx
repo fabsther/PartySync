@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { PartyPopper, Users, CalendarDays, Menu, X, User, Download } from 'lucide-react';
+import { PartyPopper, Users, CalendarDays, Menu, X, User, Download, Shield } from 'lucide-react';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { useAuth } from '../contexts/AuthContext';
 import { usePWAInstall } from '../hooks/usePWAInstall';
@@ -7,12 +7,13 @@ import { useTranslation } from 'react-i18next';
 
 interface LayoutProps {
   children: ReactNode;
-  activeTab: 'parties' | 'subscribers' | 'profile';
-  onTabChange: (tab: 'parties' | 'subscribers' | 'profile') => void;
+  activeTab: 'parties' | 'subscribers' | 'profile' | 'admin';
+  onTabChange: (tab: 'parties' | 'subscribers' | 'profile' | 'admin') => void;
   onNavigate?: (partyId: string, tab?: string, postId?: string) => void;
+  isAdmin?: boolean;
 }
 
-export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutProps) {
+export function Layout({ children, activeTab, onTabChange, onNavigate, isAdmin }: LayoutProps) {
   const { user } = useAuth();
   const { t } = useTranslation('common');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,6 +69,19 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                   {label}
                 </button>
               ))}
+              {isAdmin && (
+                <button
+                  onClick={() => onTabChange('admin')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    activeTab === 'admin'
+                      ? 'bg-orange-500 text-white'
+                      : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  }`}
+                >
+                  <Shield className="w-5 h-5 inline mr-2" />
+                  Admin
+                </button>
+              )}
             </div>
 
             {/* Right: bell+install (desktop) / install+burger (mobile) */}
@@ -124,6 +138,19 @@ export function Layout({ children, activeTab, onTabChange, onNavigate }: LayoutP
                   {label}
                 </button>
               ))}
+              {isAdmin && (
+                <button
+                  onClick={() => { onTabChange('admin'); setMobileMenuOpen(false); }}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition ${
+                    activeTab === 'admin'
+                      ? 'bg-orange-500 text-white'
+                      : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  }`}
+                >
+                  <Shield className="w-5 h-5 inline mr-2" />
+                  Admin
+                </button>
+              )}
               {canInstall && (
                 <button
                   onClick={() => { install(); setMobileMenuOpen(false); }}
