@@ -140,12 +140,25 @@ function AppContent() {
   const [initialPostId, setInitialPostId] = useState<string | null>(null);
   const [initialTab, setInitialTab] = useState<string | null>(null);
   const [wasInstalled, setWasInstalled] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
+  const [kickedUntil, setKickedUntil] = useState<Date | null>(null);
 
   // Vérifier si l'utilisateur est admin
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
     supabase.from('admins').select('user_id').eq('user_id', user.id).maybeSingle()
       .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
+
+  // Vérifier si l'utilisateur est banni ou kicked
+  useEffect(() => {
+    if (!user) { setIsBanned(false); setKickedUntil(null); return; }
+    supabase.from('profiles').select('banned_at, kicked_until').eq('id', user.id).maybeSingle()
+      .then(({ data }) => {
+        setIsBanned(!!data?.banned_at);
+        const ku = data?.kicked_until ? new Date(data.kicked_until) : null;
+        setKickedUntil(ku && ku > new Date() ? ku : null);
+      });
   }, [user]);
 
   // Sauvegarder les params d'invitation en sessionStorage dès le chargement de la page,
@@ -234,7 +247,7 @@ function AppContent() {
       supabase.from('app_installs').upsert(
         { user_id: user.id, last_seen_standalone: new Date().toISOString() },
         { onConflict: 'user_id' }
-      );
+      ).then();
       cleanupPushSubs(user.id, true);
     } else {
       supabase.from('app_installs')
@@ -247,7 +260,7 @@ function AppContent() {
             supabase.from('app_installs').upsert(
               { user_id: user.id, last_seen_browser: new Date().toISOString() },
               { onConflict: 'user_id' }
-            );
+            ).then();
             cleanupPushSubs(user.id, false);
           }
         });
@@ -257,7 +270,7 @@ function AppContent() {
       supabase.from('app_installs').upsert(
         { user_id: user.id, installed_at: new Date().toISOString(), last_seen_standalone: new Date().toISOString() },
         { onConflict: 'user_id' }
-      );
+      ).then();
       cleanupPushSubs(user.id, true);
     };
     window.addEventListener('appinstalled', handleAppInstalled);
@@ -396,6 +409,43 @@ function AppContent() {
 
   if (isRecovering) {
     return <ResetPasswordForm />;
+  }
+
+  if (isBanned) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="text-5xl mb-4">🚫</div>
+        <h2 className="text-xl font-bold text-white mb-2">Accès refusé</h2>
+        <p className="text-neutral-400 text-sm max-w-xs">
+          Ton compte a été banni. Contacte l'organisateur si tu penses qu'il s'agit d'une erreur.
+        </p>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="mt-6 text-sm text-neutral-600 hover:text-neutral-400 transition"
+        >
+          Se déconnecter
+        </button>
+      </div>
+    );
+  }
+
+  if (kickedUntil) {
+    const fmt = kickedUntil.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return (
+      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 text-center">
+        <div className="text-5xl mb-4">⏳</div>
+        <h2 className="text-xl font-bold text-white mb-2">Accès temporairement suspendu</h2>
+        <p className="text-neutral-400 text-sm max-w-xs">
+          Tu as été exclu de l'application jusqu'au <span className="text-white font-medium">{fmt}</span>.
+        </p>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="mt-6 text-sm text-neutral-600 hover:text-neutral-400 transition"
+        >
+          Se déconnecter
+        </button>
+      </div>
+    );
   }
 
   if (!user) {
