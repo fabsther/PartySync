@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserPlus, Check, X, Clock, Bell, Search } from 'lucide-react';
+import { UserPlus, Check, X, Clock, Bell, Search, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -46,6 +46,8 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   const [newCompanionName, setNewCompanionName] = useState('');
   const [addingCompanion, setAddingCompanion] = useState(false);
   const [pingedGuests, setPingedGuests] = useState<Set<string>>(new Set());
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [reminderResult, setReminderResult] = useState<{ pushed: number; emailed: number } | null>(null);
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false);
 
@@ -296,6 +298,31 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     setPingedGuests(prev => new Set(prev).add(guest.id));
   };
 
+  const sendReminder = async () => {
+    setSendingReminder(true);
+    setReminderResult(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/send-party-reminder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ partyId }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || resp.statusText);
+      setReminderResult({ pushed: data.pushed, emailed: data.emailed });
+    } catch (err: any) {
+      console.error('Reminder error:', err);
+      alert(`Erreur : ${err.message}`);
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
   const emailToDisplayName = (email: string): string => {
     const local = email.split('@')[0];
     const cleaned = local.replace(/\d+/g, '').replace(/[._-]+/g, ' ').trim();
@@ -324,14 +351,44 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     <div className="space-y-6">
 
       {isCreator && (
-        <div>
-          <button
-            onClick={() => { setShowSubscriberList(!showSubscriberList); setSubscriberSearch(''); }}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
-          >
-            <UserPlus className="w-5 h-5" />
-            <span>{t('invite_subscribers')}</span>
-          </button>
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => { setShowSubscriberList(!showSubscriberList); setSubscriberSearch(''); }}
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
+            >
+              <UserPlus className="w-5 h-5" />
+              <span>{t('invite_subscribers')}</span>
+            </button>
+
+            {(() => {
+              const pendingCount = guests.filter(g => g.status === 'invited').length;
+              return pendingCount > 0 ? (
+                <button
+                  onClick={sendReminder}
+                  disabled={sendingReminder}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center space-x-2 disabled:opacity-50"
+                >
+                  {sendingReminder
+                    ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Envoi…</span></>
+                    : <><Send className="w-4 h-4" /><span>Relancer ({pendingCount})</span></>}
+                </button>
+              ) : null;
+            })()}
+          </div>
+
+          {reminderResult && (
+            <div className="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-2 text-sm text-green-400">
+              <span>
+                {reminderResult.pushed > 0 && `${reminderResult.pushed} notif${reminderResult.pushed > 1 ? 's' : ''} push`}
+                {reminderResult.pushed > 0 && reminderResult.emailed > 0 && ' · '}
+                {reminderResult.emailed > 0 && `${reminderResult.emailed} email${reminderResult.emailed > 1 ? 's' : ''}`}
+                {reminderResult.pushed === 0 && reminderResult.emailed === 0 && 'Aucun invité en attente'}
+                {(reminderResult.pushed > 0 || reminderResult.emailed > 0) && ' envoyé(s) ✓'}
+              </span>
+              <button onClick={() => setReminderResult(null)}><X className="w-4 h-4" /></button>
+            </div>
+          )}
 
           {showSubscriberList && (
             <div className="mt-4 bg-neutral-800 rounded-lg p-4 space-y-2">
