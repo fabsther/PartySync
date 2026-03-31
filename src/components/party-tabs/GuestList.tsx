@@ -154,9 +154,9 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
 
       setShowSubscriberList(false);
       loadGuests();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding guest:', err);
-      alert('Failed to add guest.');
+      alert(`Failed to add guest.\n${err?.message || err?.code || JSON.stringify(err)}`);
     } finally {
       setAddingGuest(false);
     }
