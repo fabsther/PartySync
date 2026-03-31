@@ -16,6 +16,8 @@ import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { checkAndSendFoodReminders } from './lib/foodReminders';
 import { WelcomePartyModal, WelcomePartyInfo } from './components/WelcomePartyModal';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { DataDeletion } from './components/DataDeletion';
+import { TermsOfService } from './components/TermsOfService';
 import { AdminPage } from './components/AdminPage';
 
 interface PingContext {
@@ -126,6 +128,12 @@ function checkOAuthBrowserModeWarning() {
 function AppContent() {
   if (window.location.pathname === '/privacy') {
     return <PrivacyPolicy />;
+  }
+  if (window.location.pathname === '/data-deletion') {
+    return <DataDeletion />;
+  }
+  if (window.location.pathname === '/terms') {
+    return <TermsOfService />;
   }
 
   const showBrowserModeWarning = checkOAuthBrowserModeWarning();
