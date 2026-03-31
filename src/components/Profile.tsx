@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, MapPin, Save, Loader, Camera, X, LogOut, Bell, BellOff } from 'lucide-react';
+import { User, Mail, MapPin, Save, Loader, Camera, X, LogOut, Bell, BellOff, Download, Trash2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -50,6 +50,83 @@ export function Profile() {
       await refreshNotifStatus();
     } finally {
       setNotifLoading(false);
+    }
+  };
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadPersonalData = async () => {
+    if (!user) return;
+    setDownloading(true);
+    try {
+      const [
+        profileRes,
+        guestsRes,
+        subsRes,
+        subsToRes,
+        notifsRes,
+        carRes,
+      ] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        supabase.from('party_guests').select('status, created_at, parties(title, fixed_date, address)').eq('user_id', user.id),
+        supabase.from('subscribers').select('profiles!subscribers_subscriber_id_fkey(full_name, email)').eq('user_id', user.id),
+        supabase.from('subscribers').select('profiles!subscribers_user_id_fkey(full_name, email)').eq('subscriber_id', user.id),
+        supabase.from('notifications').select('title, message, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(200),
+        supabase.from('car_sharing').select('type, departure_location, created_at, parties(title)').eq('user_id', user.id),
+      ]);
+
+      const payload = {
+        exported_at: new Date().toISOString(),
+        profile: profileRes.data,
+        party_memberships: guestsRes.data || [],
+        subscribers: (subsRes.data || []).map((s: any) => s.profiles),
+        subscribed_to: (subsToRes.data || []).map((s: any) => s.profiles),
+        notifications: notifsRes.data || [],
+        car_sharing: carRes.data || [],
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `partysync-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading data:', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body.error || resp.statusText);
+      }
+      // Edge Function deleted the auth user → session will become invalid
+      await supabase.auth.signOut();
+    } catch (err: any) {
+      console.error('Error deleting account:', err);
+      alert(`Erreur : ${err.message || err}`);
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -372,6 +449,27 @@ export function Profile() {
         </div>
       )}
 
+      {/* RGPD */}
+      <div className="mt-6 bg-neutral-900 border border-neutral-800 rounded-xl p-6 space-y-3">
+        <h3 className="text-lg font-semibold text-white mb-1">{t('rgpd_title')}</h3>
+        <p className="text-sm text-neutral-400">{t('rgpd_subtitle')}</p>
+        <button
+          onClick={downloadPersonalData}
+          disabled={downloading}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-neutral-800 border border-neutral-700 text-neutral-200 rounded-xl hover:bg-neutral-700 transition disabled:opacity-50"
+        >
+          {downloading ? <Loader className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+          <span className="font-medium">{downloading ? t('rgpd_downloading') : t('rgpd_download')}</span>
+        </button>
+        <button
+          onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(''); }}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/20 transition"
+        >
+          <Trash2 className="w-5 h-5" />
+          <span className="font-medium">{t('rgpd_delete_account')}</span>
+        </button>
+      </div>
+
       <div className="mt-6">
         <button
           onClick={handleSignOut}
@@ -381,6 +479,49 @@ export function Profile() {
           <span className="font-medium">{t('sign_out')}</span>
         </button>
       </div>
+
+      {/* Delete account modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-red-500/20 flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-xl font-bold text-white">{t('rgpd_delete_title')}</h3>
+            </div>
+            <p className="text-sm text-neutral-400 mb-4">{t('rgpd_delete_warning')}</p>
+            <p className="text-sm text-neutral-300 mb-2">
+              {t('rgpd_delete_confirm_label')} <span className="font-mono text-red-400">SUPPRIMER</span>
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="SUPPRIMER"
+              className="w-full px-4 py-2.5 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:border-red-500 transition mb-5 font-mono"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 py-2.5 bg-neutral-800 text-neutral-300 rounded-lg hover:bg-neutral-700 transition disabled:opacity-50"
+              >
+                {t('cancel', { ns: 'common' })}
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== 'SUPPRIMER'}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+              >
+                {deleting
+                  ? <><Loader className="w-4 h-4 animate-spin" /> {t('rgpd_deleting')}</>
+                  : t('rgpd_delete_confirm_btn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -57,5 +57,15 @@
   "qr_subtitle": "Escanea para agregarme como amigo",
   "subscribe_back": "Suscribirse también",
   "remove_subscriber_title": "Eliminar suscriptor",
-  "unsubscribe_title": "Cancelar suscripción"
+  "unsubscribe_title": "Cancelar suscripción",
+  "rgpd_title": "Datos personales (RGPD)",
+  "rgpd_subtitle": "Descarga una copia de tus datos o elimina permanentemente tu cuenta.",
+  "rgpd_download": "Descargar mis datos",
+  "rgpd_downloading": "Descargando…",
+  "rgpd_delete_account": "Eliminar mi cuenta",
+  "rgpd_delete_title": "Eliminar cuenta",
+  "rgpd_delete_warning": "Esta acción es irreversible. Tu cuenta, perfil, invitaciones, suscripciones y todos tus datos serán eliminados permanentemente.",
+  "rgpd_delete_confirm_label": "Escribe",
+  "rgpd_delete_confirm_btn": "Eliminar permanentemente",
+  "rgpd_deleting": "Eliminando…"
 }

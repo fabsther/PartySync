@@ -57,5 +57,15 @@
   "qr_subtitle": "Scanne pour m'ajouter comme ami",
   "subscribe_back": "S'abonner en retour",
   "remove_subscriber_title": "Retirer ce subscriber",
-  "unsubscribe_title": "Se désabonner"
+  "unsubscribe_title": "Se désabonner",
+  "rgpd_title": "Données personnelles (RGPD)",
+  "rgpd_subtitle": "Télécharge une copie de tes données ou supprime définitivement ton compte.",
+  "rgpd_download": "Télécharger mes données",
+  "rgpd_downloading": "Téléchargement…",
+  "rgpd_delete_account": "Supprimer mon compte",
+  "rgpd_delete_title": "Supprimer le compte",
+  "rgpd_delete_warning": "Cette action est irréversible. Ton compte, ton profil, tes invitations, tes abonnements et toutes tes données seront définitivement supprimés.",
+  "rgpd_delete_confirm_label": "Tape",
+  "rgpd_delete_confirm_btn": "Supprimer définitivement",
+  "rgpd_deleting": "Suppression…"
 }

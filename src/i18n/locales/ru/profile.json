@@ -57,5 +57,15 @@
   "qr_subtitle": "Сканируй, чтобы добавить меня в друзья",
   "subscribe_back": "Подписаться в ответ",
   "remove_subscriber_title": "Удалить подписчика",
-  "unsubscribe_title": "Отписаться"
+  "unsubscribe_title": "Отписаться",
+  "rgpd_title": "Личные данные (GDPR)",
+  "rgpd_subtitle": "Скачай копию своих данных или навсегда удали аккаунт.",
+  "rgpd_download": "Скачать мои данные",
+  "rgpd_downloading": "Загрузка…",
+  "rgpd_delete_account": "Удалить аккаунт",
+  "rgpd_delete_title": "Удалить аккаунт",
+  "rgpd_delete_warning": "Это действие необратимо. Твой аккаунт, профиль, приглашения, подписки и все данные будут удалены навсегда.",
+  "rgpd_delete_confirm_label": "Введи",
+  "rgpd_delete_confirm_btn": "Удалить навсегда",
+  "rgpd_deleting": "Удаление…"
 }

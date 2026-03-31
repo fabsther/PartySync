@@ -57,5 +57,15 @@
   "qr_subtitle": "Scan to add me as a friend",
   "subscribe_back": "Subscribe back",
   "remove_subscriber_title": "Remove Subscriber",
-  "unsubscribe_title": "Unsubscribe"
+  "unsubscribe_title": "Unsubscribe",
+  "rgpd_title": "Personal Data (GDPR)",
+  "rgpd_subtitle": "Download a copy of your data or permanently delete your account.",
+  "rgpd_download": "Download my data",
+  "rgpd_downloading": "Downloading…",
+  "rgpd_delete_account": "Delete my account",
+  "rgpd_delete_title": "Delete account",
+  "rgpd_delete_warning": "This action is irreversible. Your account, profile, invitations, subscriptions and all your data will be permanently deleted.",
+  "rgpd_delete_confirm_label": "Type",
+  "rgpd_delete_confirm_btn": "Delete permanently",
+  "rgpd_deleting": "Deleting…"
 }
