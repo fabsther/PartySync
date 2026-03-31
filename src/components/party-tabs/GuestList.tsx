@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UserPlus, Check, X, Clock, Bell } from 'lucide-react';
+import { UserPlus, Check, X, Clock, Bell, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,6 +42,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   const [loading, setLoading] = useState(true);
   const [addingGuest, setAddingGuest] = useState(false);
   const [showSubscriberList, setShowSubscriberList] = useState(false);
+  const [subscriberSearch, setSubscriberSearch] = useState('');
   const [newCompanionName, setNewCompanionName] = useState('');
   const [addingCompanion, setAddingCompanion] = useState(false);
   const [pingedGuests, setPingedGuests] = useState<Set<string>>(new Set());
@@ -97,11 +98,10 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     try {
       const { data: partyData } = await supabase.from('parties').select('title').eq('id', partyId).maybeSingle();
       for (const sub of uninvited) {
-        const { error } = await supabase.from('party_guests').insert({
-          party_id: partyId,
-          user_id: sub.subscriber_id,
-          status: 'invited',
-        });
+        const { error } = await supabase.from('party_guests').upsert(
+          { party_id: partyId, user_id: sub.subscriber_id, status: 'invited' },
+          { onConflict: 'party_id,user_id' }
+        );
         if (!error) {
           await sendRemoteNotification(
             sub.subscriber_id,
@@ -133,20 +133,12 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
         .maybeSingle();
       if (partyErr) throw partyErr;
 
-      const { error } = await supabase.from('party_guests').insert({
-        party_id: partyId,
-        user_id: targetUserId,
-        status: 'invited',
-      });
+      const { error } = await supabase.from('party_guests').upsert(
+        { party_id: partyId, user_id: targetUserId, status: 'invited' },
+        { onConflict: 'party_id,user_id' }
+      );
 
-      if (error) {
-        if ((error as any).code === '23505') {
-          alert('This person is already invited to the party.');
-        } else {
-          throw error;
-        }
-        return;
-      }
+      if (error) throw error;
 
       await sendRemoteNotification(
         targetUserId,
@@ -334,7 +326,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
       {isCreator && (
         <div>
           <button
-            onClick={() => setShowSubscriberList(!showSubscriberList)}
+            onClick={() => { setShowSubscriberList(!showSubscriberList); setSubscriberSearch(''); }}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition flex items-center space-x-2"
           >
             <UserPlus className="w-5 h-5" />
@@ -342,46 +334,77 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
           </button>
 
           {showSubscriberList && (
-            <div className="mt-4 bg-neutral-800 rounded-lg p-4 space-y-2 max-h-64 overflow-y-auto">
-              {subscribers.length === 0 ? (
-                <p className="text-neutral-500 text-center py-4">{t('no_subscribers_available')}</p>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded">
-                    <span className="text-orange-300 font-medium text-sm">{t('invite_all_subscribers')}</span>
-                    <button
-                      onClick={addAllSubscribers}
-                      disabled={addingGuest || subscribers.every(sub => guests.some(g => g.user_id === sub.subscriber_id))}
-                      className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {t('add', { ns: 'common' })}
-                    </button>
-                  </div>
-                  {subscribers.map((sub: any) => {
-                  const alreadyInvited = guests.some(g => g.user_id === sub.subscriber_id);
-                  return (
-                    <div
-                      key={sub.subscriber_id}
-                      className="flex items-center justify-between p-3 bg-neutral-900 rounded hover:bg-neutral-700 transition"
-                    >
-                      <div>
-                        <div className="text-white font-medium">
-                          {sub.profiles.full_name || sub.profiles.email}
-                        </div>
-                        <div className="text-sm text-neutral-500">{sub.profiles.email}</div>
+            <div className="mt-4 bg-neutral-800 rounded-lg p-4 space-y-2">
+              {/* Search bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={subscriberSearch}
+                  onChange={(e) => setSubscriberSearch(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="w-full pl-9 pr-4 py-2 bg-neutral-900 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 transition text-sm"
+                />
+                {subscriberSearch && (
+                  <button
+                    onClick={() => setSubscriberSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {(() => {
+                const uninvited = subscribers.filter(sub => !guests.some(g => g.user_id === sub.subscriber_id));
+                const filtered = uninvited.filter(sub => {
+                  if (!subscriberSearch.trim()) return true;
+                  const q = subscriberSearch.toLowerCase();
+                  return (sub.profiles.full_name || '').toLowerCase().includes(q) ||
+                    sub.profiles.email.toLowerCase().includes(q);
+                });
+                if (uninvited.length === 0) {
+                  return <p className="text-neutral-500 text-center py-4">{t('no_subscribers_available')}</p>;
+                }
+                if (filtered.length === 0) {
+                  return <p className="text-neutral-500 text-center py-4">Aucun résultat</p>;
+                }
+                return (
+                  <div className="space-y-2 max-h-52 overflow-y-auto">
+                    {uninvited.length > 1 && !subscriberSearch && (
+                      <div className="flex items-center justify-between p-3 bg-orange-500/10 border border-orange-500/30 rounded">
+                        <span className="text-orange-300 font-medium text-sm">{t('invite_all_subscribers')}</span>
+                        <button
+                          onClick={addAllSubscribers}
+                          disabled={addingGuest}
+                          className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {t('add', { ns: 'common' })}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => addGuestFromList(sub.subscriber_id)}
-                        disabled={alreadyInvited || addingGuest}
-                        className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    )}
+                    {filtered.map((sub: any) => (
+                      <div
+                        key={sub.subscriber_id}
+                        className="flex items-center justify-between p-3 bg-neutral-900 rounded hover:bg-neutral-700 transition"
                       >
-                        {alreadyInvited ? t('already_invited') : t('add', { ns: 'common' })}
-                      </button>
-                    </div>
-                  );
-                })}
-                </>
-              )}
+                        <div>
+                          <div className="text-white font-medium">
+                            {sub.profiles.full_name || sub.profiles.email}
+                          </div>
+                          <div className="text-sm text-neutral-500">{sub.profiles.email}</div>
+                        </div>
+                        <button
+                          onClick={() => addGuestFromList(sub.subscriber_id)}
+                          disabled={addingGuest}
+                          className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {t('add', { ns: 'common' })}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
