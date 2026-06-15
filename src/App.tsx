@@ -314,20 +314,8 @@ function AppContent() {
     joinPartyId: string | undefined,
     currentUserId: string
   ): Promise<WelcomePartyInfo | null> => {
-
-    // Récupérer les données de la party en premier pour connaître is_public et max_guests
-    let partyData: { id: string; title: string; fixed_date: string | null; is_date_fixed: boolean; created_by: string; is_public: boolean; max_guests: number | null } | null = null;
-    if (joinPartyId) {
-      const { data } = await supabase
-        .from('parties')
-        .select('id, title, fixed_date, is_date_fixed, created_by, is_public, max_guests')
-        .eq('id', joinPartyId)
-        .maybeSingle();
-      partyData = data;
-    }
-
-    // 1) Si un code d'invite est fourni et que la soirée est privée, s'abonner au créateur (idempotent)
-    if (inviteCode && (!partyData || !partyData.is_public)) {
+    // 1) Si un code d'invite est fourni, trouver le créateur et s'y abonner (idempotent)
+    if (inviteCode) {
       const code = inviteCode.trim().toUpperCase();
 
       const { data: codeRow, error: codeErr } = await supabase
@@ -362,8 +350,9 @@ function AppContent() {
       }
     }
 
-    // 2) Si join_party est présent, vérifier la capacité puis ajouter aux guests (idempotent)
-    if (joinPartyId && partyData) {
+    // 2) Si join_party est présent, ajouter l'utilisateur aux guests (idempotent)
+    //    puis récupérer les infos de la party pour le modal de bienvenue
+    if (joinPartyId) {
       const { data: existingGuest, error: exGuestErr } = await supabase
         .from('party_guests')
         .select('id')
@@ -373,20 +362,7 @@ function AppContent() {
 
       if (exGuestErr && exGuestErr.code !== 'PGRST116') {
         console.error('Check existing guest failed:', exGuestErr);
-      }
-
-      // Vérifier la capacité si max_guests est défini et que l'utilisateur n'est pas déjà invité
-      let isFull = false;
-      if (!existingGuest && partyData.max_guests) {
-        const { count } = await supabase
-          .from('party_guests')
-          .select('id', { count: 'exact', head: true })
-          .eq('party_id', joinPartyId)
-          .neq('status', 'declined');
-        isFull = (count ?? 0) >= partyData.max_guests;
-      }
-
-      if (!existingGuest && !isFull) {
+      } else if (!existingGuest) {
         const { error: insGuestErr } = await supabase
           .from('party_guests')
           .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
@@ -396,20 +372,28 @@ function AppContent() {
         }
       }
 
-      const { data: creatorProfile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', partyData.created_by)
+      // Récupérer les infos de la party pour le modal de bienvenue
+      const { data: partyData } = await supabase
+        .from('parties')
+        .select('id, title, fixed_date, is_date_fixed, created_by')
+        .eq('id', joinPartyId)
         .maybeSingle();
 
-      return {
-        id: partyData.id,
-        title: partyData.title,
-        fixed_date: partyData.fixed_date,
-        is_date_fixed: partyData.is_date_fixed,
-        creator_name: (creatorProfile as any)?.full_name ?? null,
-        is_full: isFull,
-      };
+      if (partyData) {
+        const { data: creatorProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', partyData.created_by)
+          .maybeSingle();
+
+        return {
+          id: partyData.id,
+          title: partyData.title,
+          fixed_date: partyData.fixed_date,
+          is_date_fixed: partyData.is_date_fixed,
+          creator_name: (creatorProfile as any)?.full_name ?? null,
+        };
+      }
     }
 
     return null;

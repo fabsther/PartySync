@@ -24,8 +24,6 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
     is_date_fixed: true,
     fixed_date: '',
     chat_url: '',
-    is_public: false,
-    max_guests: '',
   });
   const [dateOptions, setDateOptions] = useState(['', '']);
   const [voteDeadline, setVoteDeadline] = useState('');
@@ -66,24 +64,15 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
         ? dateOptions.filter(d => d.trim()).map(d => new Date(d).toISOString())
         : null;
 
-      const maxGuests = formData.max_guests ? parseInt(formData.max_guests, 10) : null;
-
       const { data: party, error: partyError } = await supabase
         .from('parties')
         .insert({
-          title: formData.title,
-          description: formData.description,
-          address: formData.address,
-          schedule: formData.schedule,
-          entry_instructions: formData.entry_instructions,
-          is_date_fixed: formData.is_date_fixed,
+          ...formData,
+          created_by: user.id,
           fixed_date: formData.is_date_fixed && formData.fixed_date ? formData.fixed_date : null,
           date_options: validDateOptions,
           vote_deadline: !formData.is_date_fixed && voteDeadline ? new Date(voteDeadline).toISOString() : null,
           chat_url: formData.chat_url.trim() || null,
-          is_public: formData.is_public,
-          max_guests: maxGuests,
-          created_by: user.id,
           banner_url,
           icon_url,
         })
@@ -346,38 +335,6 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
               onChange={(e) => setFormData({ ...formData, chat_url: e.target.value })}
               className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
               placeholder={t('chat_group_placeholder')}
-            />
-          </div>
-
-          {/* Public / Private toggle */}
-          <div className="flex items-start gap-3 p-4 bg-neutral-800 rounded-lg border border-neutral-700">
-            <input
-              type="checkbox"
-              id="is_public"
-              checked={formData.is_public}
-              onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
-              className="w-4 h-4 mt-0.5 rounded border-neutral-700 bg-neutral-900 text-orange-500 focus:ring-orange-500"
-            />
-            <div>
-              <label htmlFor="is_public" className="text-sm font-medium text-neutral-300 cursor-pointer">
-                {t('is_public_label')}
-              </label>
-              <p className="text-xs text-neutral-500 mt-0.5">{t('is_public_hint')}</p>
-            </div>
-          </div>
-
-          {/* Max guests */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-300 mb-2">
-              {t('max_guests_label')} <span className="text-neutral-500">{t('max_guests_hint')}</span>
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={formData.max_guests}
-              onChange={(e) => setFormData({ ...formData, max_guests: e.target.value })}
-              className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
-              placeholder={t('max_guests_placeholder')}
             />
           </div>
 

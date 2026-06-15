@@ -33,10 +33,9 @@ interface GuestListProps {
   partyAddress?: string;
   partyDescription?: string;
   partyDateFixed?: boolean;
-  maxGuests?: number | null;
 }
 
-export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddress, partyDescription, partyDateFixed, maxGuests }: GuestListProps) {
+export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddress, partyDescription, partyDateFixed }: GuestListProps) {
   const { t } = useTranslation('party');
   const [guests, setGuests] = useState<Guest[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -159,7 +158,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
       loadGuests();
     } catch (err: any) {
       console.error('Error adding guest:', err);
-      alert('Failed to add guest.');
+      alert(`Failed to add guest.\n${err?.message || err?.code || JSON.stringify(err)}`);
     } finally {
       setAddingGuest(false);
     }
@@ -347,7 +346,6 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
 
   if (loading) return <div className="text-center text-neutral-400">{t('loading_guests')}</div>;
   const myGuest = guests.find(g => g.user_id === user?.id);
-  const nonDeclinedCount = guests.filter(g => g.status !== 'declined').length;
 
   return (
     <div className="space-y-6">
@@ -565,23 +563,6 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
             >
               {t('no_thanks')}
             </button>
-          </div>
-        </div>
-      )}
-
-      {maxGuests && (
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-neutral-400">{t('guests_capacity', { current: nonDeclinedCount, max: maxGuests })}</span>
-            {nonDeclinedCount >= maxGuests && (
-              <span className="text-red-400 font-medium text-xs">{t('party_full_title')}</span>
-            )}
-          </div>
-          <div className="w-full h-1.5 bg-neutral-700 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${nonDeclinedCount >= maxGuests ? 'bg-red-500' : 'bg-orange-500'}`}
-              style={{ width: `${Math.min(100, (nonDeclinedCount / maxGuests) * 100)}%` }}
-            />
           </div>
         </div>
       )}

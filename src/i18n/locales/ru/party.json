@@ -161,15 +161,5 @@
   "entry_locked": "Доступно с {{date}}",
   "guests_present_one": "{{count}} гость придёт",
   "guests_present_few": "{{count}} гостя придут",
-  "guests_present_other": "{{count}} гостей придут",
-  "max_guests_label": "Макс. гостей",
-  "max_guests_placeholder": "Напр: 50",
-  "max_guests_hint": "необязательно — пусто = без ограничений",
-  "is_public_label": "Открытое мероприятие",
-  "is_public_hint": "Вступившие по ссылке не станут подписчиками",
-  "party_full_title": "Мест нет",
-  "party_full_body": "На эту вечеринку больше нет свободных мест.",
-  "guests_capacity": "{{current}}/{{max}} мест",
-  "public_badge": "Открытое",
-  "private_badge": "Закрытое"
+  "guests_present_other": "{{count}} гостей придут"
 }
