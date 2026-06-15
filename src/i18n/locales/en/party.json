@@ -177,5 +177,13 @@
   "perm_guests_list": "Guest list",
   "perm_posts": "Posts",
   "perm_can_post": "Guests can post",
-  "tab_restricted": "This content is reserved for the organiser."
+  "tab_restricted": "This content is reserved for the organiser.",
+  "waitlisted_title": "You're on the waitlist!",
+  "waitlisted_body": "The party is full. You'll be notified as soon as a spot opens up.",
+  "waitlisted_badge": "Waitlist",
+  "waitlist_section": "Waitlist",
+  "waitlist_position": "Position {{pos}}",
+  "waitlist_promoted_notif_title": "🎊 A spot opened up — {{title}}",
+  "waitlist_promoted_notif_body": "You've been moved from the waitlist to the guest list!",
+  "status_waitlisted": "Waitlisted"
 }

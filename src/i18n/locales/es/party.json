@@ -177,5 +177,13 @@
   "perm_guests_list": "Lista de invitados",
   "perm_posts": "Posts",
   "perm_can_post": "Los invitados pueden publicar",
-  "tab_restricted": "Este contenido es exclusivo del organizador."
+  "tab_restricted": "Este contenido es exclusivo del organizador.",
+  "waitlisted_title": "¡Estás en la lista de espera!",
+  "waitlisted_body": "La fiesta está completa. Te avisaremos cuando se libere un lugar.",
+  "waitlisted_badge": "Lista de espera",
+  "waitlist_section": "Lista de espera",
+  "waitlist_position": "Posición {{pos}}",
+  "waitlist_promoted_notif_title": "🎊 ¡Se liberó un lugar — {{title}}!",
+  "waitlist_promoted_notif_body": "¡Pasaste de la lista de espera a la lista de invitados!",
+  "status_waitlisted": "En espera"
 }

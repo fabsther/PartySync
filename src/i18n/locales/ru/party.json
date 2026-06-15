@@ -181,5 +181,13 @@
   "perm_guests_list": "Список гостей",
   "perm_posts": "Посты",
   "perm_can_post": "Гости могут постить",
-  "tab_restricted": "Этот раздел доступен только организатору."
+  "tab_restricted": "Этот раздел доступен только организатору.",
+  "waitlisted_title": "Ты в листе ожидания!",
+  "waitlisted_body": "Вечеринка заполнена. Ты получишь уведомление, как только освободится место.",
+  "waitlisted_badge": "Лист ожидания",
+  "waitlist_section": "Лист ожидания",
+  "waitlist_position": "Позиция {{pos}}",
+  "waitlist_promoted_notif_title": "🎊 Место освободилось — {{title}}",
+  "waitlist_promoted_notif_body": "Ты переведён из листа ожидания в список гостей!",
+  "status_waitlisted": "В ожидании"
 }

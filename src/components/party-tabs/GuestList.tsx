@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { sendLocalNotification } from '../../lib/notifications';
 import { sendRemoteNotification } from '../../lib/remoteNotify';
 import { downloadICS, getGoogleCalendarUrl } from '../../lib/calendar';
+import { promoteFromWaitlist } from '../../lib/waitlist';
 
 interface Companion {
   id: string;
@@ -15,7 +16,8 @@ interface Companion {
 interface Guest {
   id: string;
   user_id: string;
-  status: 'invited' | 'confirmed' | 'declined';
+  status: 'invited' | 'confirmed' | 'declined' | 'waitlisted';
+  waitlisted_at?: string | null;
   companions?: string | null;
   guest_companions?: Companion[];
   profiles: {
@@ -223,6 +225,10 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
         );
       }
 
+      if (status === 'declined') {
+        promoteFromWaitlist(partyId).catch(console.error);
+      }
+
       loadGuests();
     } catch (error) {
       console.error('Error updating guest status:', error);
@@ -351,7 +357,11 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
     <div className="text-center text-neutral-500 py-12">{t('tab_restricted')}</div>
   );
   const myGuest = guests.find(g => g.user_id === user?.id);
-  const nonDeclinedCount = guests.filter(g => g.status !== 'declined').length;
+  const activeGuests = guests.filter(g => g.status !== 'waitlisted');
+  const waitlistedGuests = guests
+    .filter(g => g.status === 'waitlisted')
+    .sort((a, b) => (a.waitlisted_at ?? '').localeCompare(b.waitlisted_at ?? ''));
+  const nonDeclinedCount = activeGuests.filter(g => g.status !== 'declined').length;
 
   return (
     <div className="space-y-6">
@@ -591,10 +601,10 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
       )}
 
       <div className="space-y-3">
-        {guests.length === 0 ? (
+        {activeGuests.length === 0 ? (
           <p className="text-neutral-500 text-center py-8">{t('no_guests_yet')}</p>
         ) : (
-          guests.map((guest) => (
+          activeGuests.map((guest) => (
             <div
               key={guest.id}
               className="bg-neutral-800 rounded-lg p-4 space-y-2"
@@ -674,6 +684,45 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
           ))
         )}
       </div>
+
+      {/* Waitlist section */}
+      {waitlistedGuests.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-yellow-400" />
+            <h3 className="text-sm font-semibold text-yellow-400">{t('waitlist_section')} ({waitlistedGuests.length})</h3>
+          </div>
+          {waitlistedGuests.map((guest, idx) => (
+            <div key={guest.id} className="bg-neutral-800/60 border border-yellow-500/20 rounded-lg p-4 flex items-center gap-3">
+              <span className="text-xs font-bold text-yellow-500 w-6 text-center">{idx + 1}</span>
+              {guest.profiles.avatar_url ? (
+                <img src={guest.profiles.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                  {(guest.profiles.full_name || emailToDisplayName(guest.profiles.email))[0].toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-white font-medium truncate">
+                  {guest.profiles.full_name || emailToDisplayName(guest.profiles.email)}
+                </div>
+                <div className="text-xs text-yellow-500/70">{t('status_waitlisted')}</div>
+              </div>
+              {isCreator && (
+                <button
+                  onClick={async () => {
+                    await supabase.from('party_guests').update({ status: 'invited', waitlisted_at: null }).eq('id', guest.id);
+                    loadGuests();
+                  }}
+                  className="text-xs px-2 py-1 bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition flex-shrink-0"
+                >
+                  {t('accept')}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

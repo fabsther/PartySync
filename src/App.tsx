@@ -377,23 +377,37 @@ function AppContent() {
 
       // Vérifier la capacité si max_guests est défini et que l'utilisateur n'est pas déjà invité
       let isFull = false;
+      let isWaitlisted = false;
       if (!existingGuest && partyData.max_guests) {
         const { count } = await supabase
           .from('party_guests')
           .select('id', { count: 'exact', head: true })
           .eq('party_id', joinPartyId)
-          .neq('status', 'declined');
+          .in('status', ['invited', 'confirmed', 'waitlisted']);
         isFull = (count ?? 0) >= partyData.max_guests;
       }
 
-      if (!existingGuest && !isFull) {
-        const { error: insGuestErr } = await supabase
-          .from('party_guests')
-          .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
-
-        if (insGuestErr && (insGuestErr as any).code !== '23505') {
-          console.error('Insert guest failed:', insGuestErr);
+      if (!existingGuest) {
+        if (isFull) {
+          // Mettre en liste d'attente
+          const { error: insErr } = await supabase
+            .from('party_guests')
+            .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'waitlisted', waitlisted_at: new Date().toISOString() });
+          if (insErr && (insErr as any).code !== '23505') {
+            console.error('Insert waitlist failed:', insErr);
+          } else {
+            isWaitlisted = true;
+          }
+        } else {
+          const { error: insGuestErr } = await supabase
+            .from('party_guests')
+            .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
+          if (insGuestErr && (insGuestErr as any).code !== '23505') {
+            console.error('Insert guest failed:', insGuestErr);
+          }
         }
+      } else if (existingGuest.status === 'waitlisted') {
+        isWaitlisted = true;
       }
 
       const { data: creatorProfile } = await supabase
@@ -408,7 +422,8 @@ function AppContent() {
         fixed_date: partyData.fixed_date,
         is_date_fixed: partyData.is_date_fixed,
         creator_name: (creatorProfile as any)?.full_name ?? null,
-        is_full: isFull,
+        is_full: isFull && !isWaitlisted,
+        is_waitlisted: isWaitlisted,
       };
     }
 

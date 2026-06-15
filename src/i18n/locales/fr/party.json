@@ -177,5 +177,13 @@
   "perm_guests_list": "Liste des invités",
   "perm_posts": "Posts",
   "perm_can_post": "Invités peuvent poster",
-  "tab_restricted": "Ce contenu est réservé à l'organisateur."
+  "tab_restricted": "Ce contenu est réservé à l'organisateur.",
+  "waitlisted_title": "Tu es sur liste d'attente !",
+  "waitlisted_body": "La soirée est complète. Tu seras notifié·e dès qu'une place se libère.",
+  "waitlisted_badge": "Liste d'attente",
+  "waitlist_section": "Liste d'attente",
+  "waitlist_position": "Position {{pos}}",
+  "waitlist_promoted_notif_title": "🎊 Une place s'est libérée — {{title}}",
+  "waitlist_promoted_notif_body": "Tu passes de la liste d'attente à la liste des invités !",
+  "status_waitlisted": "En attente"
 }
