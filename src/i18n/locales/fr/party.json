@@ -185,5 +185,9 @@
   "waitlist_position": "Position {{pos}}",
   "waitlist_promoted_notif_title": "🎊 Une place s'est libérée — {{title}}",
   "waitlist_promoted_notif_body": "Tu passes de la liste d'attente à la liste des invités !",
-  "status_waitlisted": "En attente"
+  "status_waitlisted": "En attente",
+  "your_rsvp": "Ta participation",
+  "decline_warning_title": "Quitter la soirée ?",
+  "decline_warning_body": "Si tu déclines, tu seras retiré·e de la liste des invités. Pour revenir plus tard, tu seras placé·e en fin de liste d'attente.",
+  "decline_confirm": "Confirmer le déclin"
 }

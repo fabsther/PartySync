@@ -54,6 +54,7 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   const [reminderResult, setReminderResult] = useState<{ pushed: number; emailed: number } | null>(null);
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false);
+  const [showDeclineWarning, setShowDeclineWarning] = useState(false);
 
   const { user } = useAuth();
   const isCreator = user?.id === creatorId;
@@ -353,15 +354,81 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   };
 
   if (loading) return <div className="text-center text-neutral-400">{t('loading_guests')}</div>;
-  if (!guestsListVisible && !isCreator) return (
-    <div className="text-center text-neutral-500 py-12">{t('tab_restricted')}</div>
-  );
+
   const myGuest = guests.find(g => g.user_id === user?.id);
   const activeGuests = guests.filter(g => g.status !== 'waitlisted');
   const waitlistedGuests = guests
     .filter(g => g.status === 'waitlisted')
     .sort((a, b) => (a.waitlisted_at ?? '').localeCompare(b.waitlisted_at ?? ''));
   const nonDeclinedCount = activeGuests.filter(g => g.status !== 'declined').length;
+
+  // When guest list is hidden, show only the current user's personal RSVP card
+  if (!guestsListVisible && !isCreator) {
+    const doDecline = async () => {
+      if (!myGuest) return;
+      await updateStatus(myGuest.id, 'declined');
+      setShowDeclineWarning(false);
+    };
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-neutral-400">{t('your_rsvp')}</h3>
+
+        {myGuest ? (
+          <div className="bg-neutral-800 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              {getStatusIcon(myGuest.status)}
+              <span className="text-white font-medium">{getStatusText(myGuest.status)}</span>
+            </div>
+            {myGuest.status !== 'declined' && (
+              <div className="flex gap-2">
+                {myGuest.status !== 'confirmed' && (
+                  <button
+                    onClick={() => updateStatus(myGuest.id, 'confirmed')}
+                    className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition text-sm font-medium"
+                  >
+                    {t('accept')}
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDeclineWarning(true)}
+                  className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition text-sm font-medium"
+                >
+                  {t('decline')}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-neutral-500 text-sm">{t('no_guests_yet')}</p>
+        )}
+
+        {/* Decline warning popup */}
+        {showDeclineWarning && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+              <h3 className="text-lg font-bold text-white mb-3">{t('decline_warning_title')}</h3>
+              <p className="text-neutral-400 text-sm mb-6">{t('decline_warning_body')}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeclineWarning(false)}
+                  className="flex-1 px-4 py-2.5 bg-neutral-800 text-neutral-300 rounded-xl hover:bg-neutral-700 transition text-sm font-medium"
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  onClick={doDecline}
+                  className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium"
+                >
+                  {t('decline_confirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

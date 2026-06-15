@@ -366,7 +366,7 @@ function AppContent() {
     if (joinPartyId && partyData) {
       const { data: existingGuest, error: exGuestErr } = await supabase
         .from('party_guests')
-        .select('id')
+        .select('id, status')
         .eq('party_id', joinPartyId)
         .eq('user_id', currentUserId)
         .maybeSingle();
@@ -375,10 +375,11 @@ function AppContent() {
         console.error('Check existing guest failed:', exGuestErr);
       }
 
-      // Vérifier la capacité si max_guests est défini et que l'utilisateur n'est pas déjà invité
+      const isNewOrDeclined = !existingGuest || (existingGuest as any).status === 'declined';
       let isFull = false;
       let isWaitlisted = false;
-      if (!existingGuest && partyData.max_guests) {
+
+      if (isNewOrDeclined && partyData.max_guests) {
         const { count } = await supabase
           .from('party_guests')
           .select('id', { count: 'exact', head: true })
@@ -387,26 +388,23 @@ function AppContent() {
         isFull = (count ?? 0) >= partyData.max_guests;
       }
 
-      if (!existingGuest) {
+      if (isNewOrDeclined) {
+        const now = new Date().toISOString();
         if (isFull) {
-          // Mettre en liste d'attente
-          const { error: insErr } = await supabase
-            .from('party_guests')
-            .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'waitlisted', waitlisted_at: new Date().toISOString() });
-          if (insErr && (insErr as any).code !== '23505') {
-            console.error('Insert waitlist failed:', insErr);
+          if (!existingGuest) {
+            await supabase.from('party_guests').insert({ party_id: joinPartyId, user_id: currentUserId, status: 'waitlisted', waitlisted_at: now });
           } else {
-            isWaitlisted = true;
+            await supabase.from('party_guests').update({ status: 'waitlisted', waitlisted_at: now }).eq('id', (existingGuest as any).id);
           }
+          isWaitlisted = true;
         } else {
-          const { error: insGuestErr } = await supabase
-            .from('party_guests')
-            .insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
-          if (insGuestErr && (insGuestErr as any).code !== '23505') {
-            console.error('Insert guest failed:', insGuestErr);
+          if (!existingGuest) {
+            await supabase.from('party_guests').insert({ party_id: joinPartyId, user_id: currentUserId, status: 'invited' });
+          } else {
+            await supabase.from('party_guests').update({ status: 'invited', waitlisted_at: null }).eq('id', (existingGuest as any).id);
           }
         }
-      } else if (existingGuest.status === 'waitlisted') {
+      } else if ((existingGuest as any).status === 'waitlisted') {
         isWaitlisted = true;
       }
 

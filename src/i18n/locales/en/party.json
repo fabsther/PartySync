@@ -185,5 +185,9 @@
   "waitlist_position": "Position {{pos}}",
   "waitlist_promoted_notif_title": "🎊 A spot opened up — {{title}}",
   "waitlist_promoted_notif_body": "You've been moved from the waitlist to the guest list!",
-  "status_waitlisted": "Waitlisted"
+  "status_waitlisted": "Waitlisted",
+  "your_rsvp": "Your RSVP",
+  "decline_warning_title": "Leave the party?",
+  "decline_warning_body": "If you decline, you'll be removed from the guest list. If you want to come back later, you'll be placed at the end of the waitlist.",
+  "decline_confirm": "Confirm decline"
 }

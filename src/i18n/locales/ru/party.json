@@ -189,5 +189,9 @@
   "waitlist_position": "Позиция {{pos}}",
   "waitlist_promoted_notif_title": "🎊 Место освободилось — {{title}}",
   "waitlist_promoted_notif_body": "Ты переведён из листа ожидания в список гостей!",
-  "status_waitlisted": "В ожидании"
+  "status_waitlisted": "В ожидании",
+  "your_rsvp": "Моё участие",
+  "decline_warning_title": "Покинуть вечеринку?",
+  "decline_warning_body": "Если ты откажешься, тебя удалят из списка гостей. Если захочешь вернуться позже, ты окажешься в конце листа ожидания.",
+  "decline_confirm": "Подтвердить отказ"
 }
