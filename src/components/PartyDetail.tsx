@@ -59,6 +59,14 @@ interface Party {
   chat_url: string | null;
   is_public: boolean;
   max_guests: number | null;
+  equipment_guests_visible: boolean;
+  equipment_guests_editable: boolean;
+  food_guests_visible: boolean;
+  food_guests_editable: boolean;
+  crowdfund_guests_visible: boolean;
+  crowdfund_guests_editable: boolean;
+  guests_list_visible: boolean;
+  posts_guests_can_post: boolean;
 }
 
 interface PartyDetailProps {
@@ -86,7 +94,20 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
   const [showCalendarMenu, setShowCalendarMenu] = useState(false);
   const [showPartyQR, setShowPartyQR] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editDraft, setEditDraft] = useState({ fixed_date: '', address: '', schedule: '', entry_instructions: '' });
+  const [editDraft, setEditDraft] = useState({
+    fixed_date: '',
+    address: '',
+    schedule: '',
+    entry_instructions: '',
+    equipment_guests_visible: true,
+    equipment_guests_editable: true,
+    food_guests_visible: true,
+    food_guests_editable: true,
+    crowdfund_guests_visible: true,
+    crowdfund_guests_editable: true,
+    guests_list_visible: true,
+    posts_guests_can_post: true,
+  });
   const [saving, setSaving] = useState(false);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState('');
@@ -295,6 +316,14 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
       address: party.address || '',
       schedule: party.schedule || '',
       entry_instructions: party.entry_instructions || '',
+      equipment_guests_visible: party.equipment_guests_visible,
+      equipment_guests_editable: party.equipment_guests_editable,
+      food_guests_visible: party.food_guests_visible,
+      food_guests_editable: party.food_guests_editable,
+      crowdfund_guests_visible: party.crowdfund_guests_visible,
+      crowdfund_guests_editable: party.crowdfund_guests_editable,
+      guests_list_visible: party.guests_list_visible,
+      posts_guests_can_post: party.posts_guests_can_post,
     });
     setShowEditModal(true);
   };
@@ -315,6 +344,14 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
         schedule: editDraft.schedule || null,
         entry_instructions: editDraft.entry_instructions || null,
         ...(party.is_date_fixed && editDraft.fixed_date ? { fixed_date: newDateIso } : {}),
+        equipment_guests_visible: editDraft.equipment_guests_visible,
+        equipment_guests_editable: editDraft.equipment_guests_editable,
+        food_guests_visible: editDraft.food_guests_visible,
+        food_guests_editable: editDraft.food_guests_editable,
+        crowdfund_guests_visible: editDraft.crowdfund_guests_visible,
+        crowdfund_guests_editable: editDraft.crowdfund_guests_editable,
+        guests_list_visible: editDraft.guests_list_visible,
+        posts_guests_can_post: editDraft.posts_guests_can_post,
       };
 
       await supabase.from('parties').update(updates).eq('id', partyId);
@@ -793,39 +830,45 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               <Car className="w-4 h-4" />
               <span>{t('tab_carshare')}</span>
             </button>
-            <button
-              onClick={() => setActiveTab('equipment')}
-              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
-                activeTab === 'equipment'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <Wrench className="w-4 h-4" />
-              <span>{t('tab_equipment')}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('food')}
-              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
-                activeTab === 'food'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <UtensilsCrossed className="w-4 h-4" />
-              <span>{t('tab_food')}</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('crowdfund')}
-              className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
-                activeTab === 'crowdfund'
-                  ? 'text-orange-500 border-b-2 border-orange-500'
-                  : 'text-neutral-400 hover:text-white'
-              }`}
-            >
-              <CrowdfundIcon className="w-4 h-4" />
-              <span>{t('tab_crowdfund')}</span>
-            </button>
+            {(isCreator || party.equipment_guests_visible) && (
+              <button
+                onClick={() => setActiveTab('equipment')}
+                className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
+                  activeTab === 'equipment'
+                    ? 'text-orange-500 border-b-2 border-orange-500'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <Wrench className="w-4 h-4" />
+                <span>{t('tab_equipment')}</span>
+              </button>
+            )}
+            {(isCreator || party.food_guests_visible) && (
+              <button
+                onClick={() => setActiveTab('food')}
+                className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
+                  activeTab === 'food'
+                    ? 'text-orange-500 border-b-2 border-orange-500'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <UtensilsCrossed className="w-4 h-4" />
+                <span>{t('tab_food')}</span>
+              </button>
+            )}
+            {(isCreator || party.crowdfund_guests_visible) && (
+              <button
+                onClick={() => setActiveTab('crowdfund')}
+                className={`flex-1 basis-1/3 flex items-center justify-center space-x-2 py-3.5 font-medium transition ${
+                  activeTab === 'crowdfund'
+                    ? 'text-orange-500 border-b-2 border-orange-500'
+                    : 'text-neutral-400 hover:text-white'
+                }`}
+              >
+                <CrowdfundIcon className="w-4 h-4" />
+                <span>{t('tab_crowdfund')}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -840,18 +883,43 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               partyDescription={party.description || undefined}
               partyDateFixed={party.is_date_fixed}
               maxGuests={party.max_guests}
+              guestsListVisible={party.guests_list_visible}
             />
           )}
           {activeTab === 'carshare' && (
             <CarSharing partyId={partyId} partyAddress={party.address || undefined} partyTitle={party.title} />
           )}
-          {activeTab === 'equipment' && <Equipment partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />}
-          {activeTab === 'food' && <FoodBeverage partyId={partyId} creatorId={party.created_by} />}
+          {activeTab === 'equipment' && (
+            <Equipment
+              partyId={partyId}
+              creatorId={party.created_by}
+              partyTitle={party.title}
+              readOnly={!isCreator && !party.equipment_guests_editable}
+            />
+          )}
+          {activeTab === 'food' && (
+            <FoodBeverage
+              partyId={partyId}
+              creatorId={party.created_by}
+              readOnly={!isCreator && !party.food_guests_editable}
+            />
+          )}
           {activeTab === 'posts' && (
-            <Posts partyId={partyId} creatorId={party.created_by} partyTitle={party.title} highlightPostId={initialPostId} />
+            <Posts
+              partyId={partyId}
+              creatorId={party.created_by}
+              partyTitle={party.title}
+              highlightPostId={initialPostId}
+              canPost={isCreator || party.posts_guests_can_post}
+            />
           )}
           {activeTab === 'crowdfund' && (
-            <Crowdfunding partyId={partyId} creatorId={party.created_by} partyTitle={party.title} />
+            <Crowdfunding
+              partyId={partyId}
+              creatorId={party.created_by}
+              partyTitle={party.title}
+              readOnly={!isCreator && !party.crowdfund_guests_editable}
+            />
           )}
         </div>
       </div>
@@ -931,6 +999,130 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
                   rows={3}
                   className="w-full px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 text-sm resize-none"
                 />
+              </div>
+
+              {/* Permissions section */}
+              <div className="pt-2 border-t border-neutral-800">
+                <p className="text-sm font-semibold text-neutral-300 mb-3">{t('permissions_section')}</p>
+                <div className="space-y-3">
+                  {/* Equipment */}
+                  <div className="bg-neutral-800 rounded-xl p-3 space-y-2">
+                    <p className="text-sm text-neutral-300 font-medium">{t('perm_equipment')}</p>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editDraft.equipment_guests_visible}
+                          onChange={e => setEditDraft(d => ({
+                            ...d,
+                            equipment_guests_visible: e.target.checked,
+                            equipment_guests_editable: e.target.checked ? d.equipment_guests_editable : false,
+                          }))}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm text-neutral-400">{t('perm_see')}</span>
+                      </label>
+                      <label className={`flex items-center gap-2 ${!editDraft.equipment_guests_visible ? 'opacity-40' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={editDraft.equipment_guests_editable}
+                          disabled={!editDraft.equipment_guests_visible}
+                          onChange={e => setEditDraft(d => ({ ...d, equipment_guests_editable: e.target.checked }))}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm text-neutral-400">{t('perm_interact')}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Food */}
+                  <div className="bg-neutral-800 rounded-xl p-3 space-y-2">
+                    <p className="text-sm text-neutral-300 font-medium">{t('perm_food')}</p>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editDraft.food_guests_visible}
+                          onChange={e => setEditDraft(d => ({
+                            ...d,
+                            food_guests_visible: e.target.checked,
+                            food_guests_editable: e.target.checked ? d.food_guests_editable : false,
+                          }))}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm text-neutral-400">{t('perm_see')}</span>
+                      </label>
+                      <label className={`flex items-center gap-2 ${!editDraft.food_guests_visible ? 'opacity-40' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={editDraft.food_guests_editable}
+                          disabled={!editDraft.food_guests_visible}
+                          onChange={e => setEditDraft(d => ({ ...d, food_guests_editable: e.target.checked }))}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm text-neutral-400">{t('perm_interact')}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Crowdfund */}
+                  <div className="bg-neutral-800 rounded-xl p-3 space-y-2">
+                    <p className="text-sm text-neutral-300 font-medium">{t('perm_crowdfund')}</p>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editDraft.crowdfund_guests_visible}
+                          onChange={e => setEditDraft(d => ({
+                            ...d,
+                            crowdfund_guests_visible: e.target.checked,
+                            crowdfund_guests_editable: e.target.checked ? d.crowdfund_guests_editable : false,
+                          }))}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm text-neutral-400">{t('perm_see')}</span>
+                      </label>
+                      <label className={`flex items-center gap-2 ${!editDraft.crowdfund_guests_visible ? 'opacity-40' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={editDraft.crowdfund_guests_editable}
+                          disabled={!editDraft.crowdfund_guests_visible}
+                          onChange={e => setEditDraft(d => ({ ...d, crowdfund_guests_editable: e.target.checked }))}
+                          className="w-4 h-4 accent-orange-500"
+                        />
+                        <span className="text-sm text-neutral-400">{t('perm_interact')}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Guests list */}
+                  <div className="bg-neutral-800 rounded-xl p-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-neutral-300 font-medium">{t('perm_guests_list')}</span>
+                      <input
+                        type="checkbox"
+                        checked={editDraft.guests_list_visible}
+                        onChange={e => setEditDraft(d => ({ ...d, guests_list_visible: e.target.checked }))}
+                        className="w-4 h-4 accent-orange-500"
+                      />
+                    </label>
+                    <p className="text-xs text-neutral-500 mt-1">{t('perm_see')}</p>
+                  </div>
+
+                  {/* Posts */}
+                  <div className="bg-neutral-800 rounded-xl p-3">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-neutral-300 font-medium">{t('perm_posts')}</span>
+                      <input
+                        type="checkbox"
+                        checked={editDraft.posts_guests_can_post}
+                        onChange={e => setEditDraft(d => ({ ...d, posts_guests_can_post: e.target.checked }))}
+                        className="w-4 h-4 accent-orange-500"
+                      />
+                    </label>
+                    <p className="text-xs text-neutral-500 mt-1">{t('perm_can_post')}</p>
+                  </div>
+                </div>
               </div>
             </div>
 

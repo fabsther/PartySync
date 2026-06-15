@@ -167,5 +167,15 @@
   "party_full_body": "Ya no hay plazas disponibles para esta fiesta.",
   "guests_capacity": "{{current}}/{{max}} plazas",
   "public_badge": "Público",
-  "private_badge": "Privado"
+  "private_badge": "Privado",
+  "permissions_section": "Permisos de invitados",
+  "perm_see": "Ver",
+  "perm_interact": "Interactuar",
+  "perm_equipment": "Equipamiento",
+  "perm_food": "Comida y bebidas",
+  "perm_crowdfund": "Cagnotte",
+  "perm_guests_list": "Lista de invitados",
+  "perm_posts": "Posts",
+  "perm_can_post": "Los invitados pueden publicar",
+  "tab_restricted": "Este contenido es exclusivo del organizador."
 }

@@ -31,6 +31,7 @@ interface FoodItem {
 interface FoodBeverageProps {
   partyId: string;
   creatorId: string;
+  readOnly?: boolean;
 }
 
 // ============================
@@ -724,7 +725,7 @@ function EditContributionPopup({ item, creatorId, guestCount, onClose, onSaved }
 // ============================
 // Main component
 // ============================
-export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
+export function FoodBeverage({ partyId, creatorId, readOnly = false }: FoodBeverageProps) {
   const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
@@ -791,13 +792,15 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
         <div className="text-sm text-neutral-400">
           {guestCount > 0 ? t('confirmed_people', { count: guestCount }) : t('no_guests_confirmed')}
         </div>
-        <button
-          onClick={() => setShowAddPopup(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition"
-        >
-          <Plus className="w-4 h-4" />
-          {t('add_food')}
-        </button>
+        {(user?.id === creatorId || !readOnly) && (
+          <button
+            onClick={() => setShowAddPopup(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition"
+          >
+            <Plus className="w-4 h-4" />
+            {t('add_food')}
+          </button>
+        )}
       </div>
 
       {/* Item list */}
@@ -815,7 +818,7 @@ export function FoodBeverage({ partyId, creatorId }: FoodBeverageProps) {
             // Show edit (✏️) if: I have a contribution, OR I'm item creator, OR I'm party owner
             const showEdit = myContrib || isItemCreator || user?.id === creatorId;
             // Show + if: I don't have a contribution AND I'm not the item creator (creator uses edit)
-            const showContribute = !myContrib && !isItemCreator && user?.id !== creatorId;
+            const showContribute = !myContrib && !isItemCreator && user?.id !== creatorId && !readOnly;
 
             return (
               <div

@@ -35,6 +35,7 @@ interface EquipmentProps {
   partyId: string;
   creatorId: string;
   partyTitle?: string;
+  readOnly?: boolean;
 }
 
 // ============================
@@ -169,7 +170,7 @@ const defaultEquipment: Array<{ name: string; quantity_required: number }> = [
   { name: 'Sun Umbrella',         quantity_required: 2 },
 ];
 
-export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
+export function Equipment({ partyId, creatorId, partyTitle, readOnly = false }: EquipmentProps) {
   const { t } = useTranslation('logistics');
   const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -370,9 +371,9 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
 
   return (
     <div className="space-y-6">
-      {isCreator && (
+      {(isCreator || !readOnly) && (
         <div className="flex flex-wrap gap-3">
-          {equipment.length === 0 && (
+          {isCreator && equipment.length === 0 && (
             <button
               onClick={addDefaultEquipment}
               className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
@@ -380,13 +381,15 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
               {t('add_default_list')}
             </button>
           )}
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('add_custom_item_btn')}</span>
-          </button>
+          {(isCreator) && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="px-4 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('add_custom_item_btn')}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -487,16 +490,18 @@ export function Equipment({ partyId, creatorId, partyTitle }: EquipmentProps) {
                   </div>
                 )}
 
-                <button
-                  onClick={() => toggleContribution(item.id, isContributing)}
-                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition ${
-                    isContributing
-                      ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                      : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
-                  }`}
-                >
-                  {isContributing ? t('wont_bring') : t('will_bring')}
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => toggleContribution(item.id, isContributing)}
+                    className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      isContributing
+                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                        : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                    }`}
+                  >
+                    {isContributing ? t('wont_bring') : t('will_bring')}
+                  </button>
+                )}
 
                 {/* Ping button — organizer only, item not fully covered */}
                 {isCreator && needed > 0 && (

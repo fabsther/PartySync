@@ -40,6 +40,7 @@ interface CrowdfundingProps {
   partyId: string;
   creatorId: string;
   partyTitle: string;
+  readOnly?: boolean;
 }
 
 // ============================
@@ -300,7 +301,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
   const [savingItem, setSavingItem] = useState<string | null>(null);
 
   const myParticipation = crowdfund.crowdfund_participations.find((p) => p.participant_id === user?.id);
-  const canParticipate = !isCreator && !myParticipation && crowdfund.status === 'active' && !funded;
+  const canParticipate = !isCreator && !myParticipation && crowdfund.status === 'active' && !funded && !readOnly;
 
   const total = crowdfund.crowdfund_items.reduce((s, i) => s + i.total_price, 0);
   const confirmedAmt = crowdfund.crowdfund_participations
@@ -621,7 +622,7 @@ function CrowdfundDetailPopup({ crowdfund, partyId, partyTitle, onClose, onUpdat
 // ============================
 // Main component
 // ============================
-export function Crowdfunding({ partyId, creatorId, partyTitle }: CrowdfundingProps) {
+export function Crowdfunding({ partyId, creatorId, partyTitle, readOnly = false }: CrowdfundingProps) {
   const { t } = useTranslation('logistics');
   const { user } = useAuth();
   const [crowdfunds, setCrowdfunds] = useState<Crowdfund[]>([]);

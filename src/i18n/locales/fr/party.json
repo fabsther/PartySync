@@ -167,5 +167,15 @@
   "party_full_body": "Il n'y a plus de places disponibles pour cette soirée.",
   "guests_capacity": "{{current}}/{{max}} places",
   "public_badge": "Public",
-  "private_badge": "Privé"
+  "private_badge": "Privé",
+  "permissions_section": "Permissions invités",
+  "perm_see": "Voir",
+  "perm_interact": "Interagir",
+  "perm_equipment": "Équipement",
+  "perm_food": "Food & Drinks",
+  "perm_crowdfund": "Cagnotte",
+  "perm_guests_list": "Liste des invités",
+  "perm_posts": "Posts",
+  "perm_can_post": "Invités peuvent poster",
+  "tab_restricted": "Ce contenu est réservé à l'organisateur."
 }

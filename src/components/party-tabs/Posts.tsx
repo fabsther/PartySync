@@ -32,11 +32,12 @@ interface PostsProps {
   creatorId: string;
   partyTitle?: string;
   highlightPostId?: string;
+  canPost?: boolean;
 }
 
 const EMPTY_POLL_DRAFT = () => ({ question: '', options: ['', ''], deadline: '' });
 
-export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: PostsProps) {
+export function Posts({ partyId, creatorId, partyTitle, highlightPostId, canPost = true }: PostsProps) {
   const { t } = useTranslation('activity');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -327,6 +328,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
     <div className="space-y-4">
 
       {/* Composer */}
+      {(isCreator || canPost) && (
       <div className="bg-neutral-800 rounded-xl p-4">
         <div className="relative">
           <textarea
@@ -388,6 +390,7 @@ export function Posts({ partyId, creatorId, partyTitle, highlightPostId }: Posts
           </button>
         </div>
       </div>
+      )}
 
       {/* Combined feed */}
       {feedItems.length === 0 ? (

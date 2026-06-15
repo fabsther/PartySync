@@ -34,9 +34,10 @@ interface GuestListProps {
   partyDescription?: string;
   partyDateFixed?: boolean;
   maxGuests?: number | null;
+  guestsListVisible?: boolean;
 }
 
-export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddress, partyDescription, partyDateFixed, maxGuests }: GuestListProps) {
+export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddress, partyDescription, partyDateFixed, maxGuests, guestsListVisible = true }: GuestListProps) {
   const { t } = useTranslation('party');
   const [guests, setGuests] = useState<Guest[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -346,6 +347,9 @@ export function GuestList({ partyId, creatorId, partyTitle, partyDate, partyAddr
   };
 
   if (loading) return <div className="text-center text-neutral-400">{t('loading_guests')}</div>;
+  if (!guestsListVisible && !isCreator) return (
+    <div className="text-center text-neutral-500 py-12">{t('tab_restricted')}</div>
+  );
   const myGuest = guests.find(g => g.user_id === user?.id);
   const nonDeclinedCount = guests.filter(g => g.status !== 'declined').length;
 

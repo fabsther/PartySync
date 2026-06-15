@@ -171,5 +171,15 @@
   "party_full_body": "На эту вечеринку больше нет свободных мест.",
   "guests_capacity": "{{current}}/{{max}} мест",
   "public_badge": "Открытое",
-  "private_badge": "Закрытое"
+  "private_badge": "Закрытое",
+  "permissions_section": "Права гостей",
+  "perm_see": "Просмотр",
+  "perm_interact": "Взаимодействие",
+  "perm_equipment": "Снаряжение",
+  "perm_food": "Еда и напитки",
+  "perm_crowdfund": "Сбор средств",
+  "perm_guests_list": "Список гостей",
+  "perm_posts": "Посты",
+  "perm_can_post": "Гости могут постить",
+  "tab_restricted": "Этот раздел доступен только организатору."
 }

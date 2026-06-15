@@ -167,5 +167,15 @@
   "party_full_body": "There are no more spots available for this party.",
   "guests_capacity": "{{current}}/{{max}} spots",
   "public_badge": "Public",
-  "private_badge": "Private"
+  "private_badge": "Private",
+  "permissions_section": "Guest permissions",
+  "perm_see": "View",
+  "perm_interact": "Interact",
+  "perm_equipment": "Equipment",
+  "perm_food": "Food & Drinks",
+  "perm_crowdfund": "Crowdfund",
+  "perm_guests_list": "Guest list",
+  "perm_posts": "Posts",
+  "perm_can_post": "Guests can post",
+  "tab_restricted": "This content is reserved for the organiser."
 }
