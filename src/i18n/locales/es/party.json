@@ -157,5 +157,15 @@
   "ping_guest_tooltip": "Recordar a este invitado",
   "entry_locked": "Disponible a partir de {{date}}",
   "guests_present_one": "{{count}} invitado presente",
-  "guests_present_other": "{{count}} invitados presentes"
+  "guests_present_other": "{{count}} invitados presentes",
+  "max_guests_label": "Máx. de invitados",
+  "max_guests_placeholder": "Ej: 50",
+  "max_guests_hint": "opcional — dejar vacío = sin límite",
+  "is_public_label": "Evento público",
+  "is_public_hint": "Los que se unan por enlace no serán suscriptores",
+  "party_full_title": "Evento completo",
+  "party_full_body": "Ya no hay plazas disponibles para esta fiesta.",
+  "guests_capacity": "{{current}}/{{max}} plazas",
+  "public_badge": "Público",
+  "private_badge": "Privado"
 }

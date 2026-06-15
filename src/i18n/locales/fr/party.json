@@ -157,5 +157,15 @@
   "ping_guest_tooltip": "Relancer cet invité",
   "entry_locked": "Disponible à partir de {{date}}",
   "guests_present_one": "{{count}} invité présent",
-  "guests_present_other": "{{count}} invités présents"
+  "guests_present_other": "{{count}} invités présents",
+  "max_guests_label": "Nombre max d'invités",
+  "max_guests_placeholder": "Ex: 50",
+  "max_guests_hint": "optionnel — laisser vide = illimité",
+  "is_public_label": "Soirée publique",
+  "is_public_hint": "Les participants via le lien ne deviennent pas abonnés",
+  "party_full_title": "Soirée complète",
+  "party_full_body": "Il n'y a plus de places disponibles pour cette soirée.",
+  "guests_capacity": "{{current}}/{{max}} places",
+  "public_badge": "Public",
+  "private_badge": "Privé"
 }

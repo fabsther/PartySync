@@ -45,24 +45,24 @@ function buildEmailHtml(opts: {
     : `<div style="width:44px;height:44px;border-radius:50%;background:#e8640c;color:white;font-size:20px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;margin-right:12px;vertical-align:middle;">${creatorName[0]?.toUpperCase() ?? '?'}</div>`;
 
   const dateHtml = partyDate
-    ? `<tr><td style="padding:6px 0;color:#888;font-size:13px;width:80px;">📅 Date</td><td style="padding:6px 0;font-size:14px;color:#222;">${formatDate(partyDate)}</td></tr>`
+    ? `<tr><td style="padding:6px 0;color:#9ca3af;font-size:13px;width:80px;">📅 Date</td><td style="padding:6px 0;font-size:14px;color:#e5e7eb;">${formatDate(partyDate)}</td></tr>`
     : '';
 
   const addressHtml = partyAddress
-    ? `<tr><td style="padding:6px 0;color:#888;font-size:13px;width:80px;">📍 Lieu</td><td style="padding:6px 0;font-size:14px;color:#222;">${partyAddress}</td></tr>`
+    ? `<tr><td style="padding:6px 0;color:#9ca3af;font-size:13px;width:80px;">📍 Lieu</td><td style="padding:6px 0;font-size:14px;color:#e5e7eb;">${partyAddress}</td></tr>`
     : '';
 
   const descHtml = partyDescription
-    ? `<p style="font-size:14px;color:#555;line-height:1.6;margin:0 0 20px 0;">${partyDescription}</p>`
+    ? `<p style="font-size:14px;color:#9ca3af;line-height:1.6;margin:0 0 20px 0;">${partyDescription}</p>`
     : '';
 
   return `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" /></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;">
+<body style="margin:0;padding:0;background:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#111827;padding:32px 0;">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#1f2937;border-radius:12px;overflow:hidden;box-shadow:0 2px 24px rgba(0,0,0,0.4);">
 
         <!-- Header orange -->
         <tr><td style="background:#e8640c;padding:18px 28px;">
@@ -73,17 +73,17 @@ function buildEmailHtml(opts: {
         <tr><td style="padding:0;">${bannerHtml}</td></tr>
 
         <!-- Content -->
-        <tr><td style="padding:28px 28px 0 28px;">
+        <tr><td style="padding:28px 28px 0 28px;background:#1f2937;">
 
           <!-- Inviter -->
-          <p style="margin:0 0 20px 0;font-size:15px;color:#333;">
+          <p style="margin:0 0 20px 0;font-size:15px;color:#d1d5db;">
             <span style="vertical-align:middle;">${avatarHtml}</span>
-            <strong style="vertical-align:middle;">${creatorName}</strong>
-            <span style="vertical-align:middle;color:#666;"> t'a invité·e à&nbsp;:</span>
+            <strong style="vertical-align:middle;color:#f9fafb;">${creatorName}</strong>
+            <span style="vertical-align:middle;color:#9ca3af;"> t'a invité·e à&nbsp;:</span>
           </p>
 
           <!-- Party title -->
-          <h1 style="margin:0 0 12px 0;font-size:26px;color:#111;font-weight:800;">${partyTitle}</h1>
+          <h1 style="margin:0 0 12px 0;font-size:26px;color:#f9fafb;font-weight:800;">${partyTitle}</h1>
 
           ${descHtml}
 
@@ -94,8 +94,8 @@ function buildEmailHtml(opts: {
           </table>
 
           <!-- CTA -->
-          <p style="font-size:15px;color:#444;margin:0 0 20px 0;">
-            Hé <strong>${guestName}</strong> ! Tu vas venir ? Réponds directement depuis ce mail 👇
+          <p style="font-size:15px;color:#d1d5db;margin:0 0 20px 0;">
+            Hé <strong style="color:#f9fafb;">${guestName}</strong> ! Tu vas venir ? Réponds directement depuis ce mail 👇
           </p>
 
           <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
@@ -104,7 +104,7 @@ function buildEmailHtml(opts: {
                 <a href="${confirmUrl}" style="display:inline-block;background:#22c55e;color:white;font-weight:700;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:8px;">✅ Je viens !</a>
               </td>
               <td>
-                <a href="${declineUrl}" style="display:inline-block;background:#f4f4f5;color:#666;font-weight:600;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:8px;border:1px solid #ddd;">❌ Je ne peux pas</a>
+                <a href="${declineUrl}" style="display:inline-block;background:#374151;color:#d1d5db;font-weight:600;font-size:15px;text-decoration:none;padding:14px 28px;border-radius:8px;border:1px solid #4b5563;">❌ Je ne peux pas</a>
               </td>
             </tr>
           </table>
@@ -112,9 +112,9 @@ function buildEmailHtml(opts: {
         </td></tr>
 
         <!-- Footer -->
-        <tr><td style="background:#1c1c1e;padding:24px 28px;">
-          <p style="margin:0 0 8px 0;color:#aaa;font-size:13px;">Reçu via <strong style="color:#e8640c;">PartySync</strong> — l'app pour organiser tes soirées entre amis.</p>
-          <p style="margin:0;font-size:12px;color:#666;">
+        <tr><td style="background:#111827;padding:24px 28px;border-top:1px solid #374151;">
+          <p style="margin:0 0 8px 0;color:#6b7280;font-size:13px;">Reçu via <strong style="color:#e8640c;">PartySync</strong> — l'app pour organiser tes soirées entre amis.</p>
+          <p style="margin:0;font-size:12px;color:#4b5563;">
             Tu n'as pas encore l'app ?
             <a href="${appUrl}" style="color:#e8640c;text-decoration:underline;">Ouvre PartySync sur ton téléphone</a>
             et installe-la depuis ton navigateur.
@@ -166,7 +166,7 @@ serve(async (req) => {
     // Verify caller is party creator
     const { data: party, error: partyErr } = await admin
       .from('parties')
-      .select('id, title, description, address, fixed_date, images, created_by')
+      .select('id, title, description, address, fixed_date, banner_url, created_by')
       .eq('id', partyId)
       .eq('created_by', user.id)
       .maybeSingle();
@@ -210,7 +210,7 @@ serve(async (req) => {
       auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
     });
 
-    const partyBannerUrl = party.images?.[0] ?? null;
+    const partyBannerUrl = party.banner_url ?? null;
     const partyUrl = `${APP_URL}/party/${partyId}`;
 
     let pushed = 0;

@@ -10,6 +10,7 @@ export interface WelcomePartyInfo {
   fixed_date: string | null;
   is_date_fixed: boolean;
   creator_name: string | null;
+  is_full?: boolean;
 }
 
 interface Props {
@@ -22,6 +23,27 @@ export function WelcomePartyModal({ party, onClose }: Props) {
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+
+  if (party.is_full) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 max-w-md w-full shadow-2xl text-center">
+          <div className="text-5xl mb-3">😔</div>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('party_full_title')}</h2>
+          <div className="bg-neutral-800 rounded-xl p-4 mb-6 border border-neutral-700">
+            <h3 className="text-xl font-semibold text-white">{party.title}</h3>
+          </div>
+          <p className="text-neutral-400 text-sm mb-6">{t('party_full_body')}</p>
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-3 bg-neutral-800 text-neutral-300 rounded-xl hover:bg-neutral-700 transition font-medium border border-neutral-700"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return t('date_tbd');
