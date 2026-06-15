@@ -57,6 +57,8 @@ interface Party {
   banner_url: string | null;
   icon_url: string | null;
   chat_url: string | null;
+  is_public: boolean;
+  max_guests: number | null;
 }
 
 interface PartyDetailProps {
@@ -505,13 +507,16 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
 
               <div className="flex-1">
                 <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${party.cancelled_at ? 'text-neutral-400 line-through' : 'text-white'}`}>{party.title}</h1>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center flex-wrap gap-2">
                   {!party.is_date_fixed && (
                     <span className="inline-block px-3 py-1 bg-orange-500/20 text-orange-400 text-sm rounded-full">
                       {t('date_voting_open')}
                     </span>
                   )}
-                  <GuestCount partyId={partyId} />
+                  <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${party.is_public ? 'bg-sky-500/20 text-sky-400' : 'bg-neutral-700 text-neutral-400'}`}>
+                    {party.is_public ? t('public_badge') : t('private_badge')}
+                  </span>
+                  <GuestCount partyId={partyId} maxGuests={party.max_guests} />
                 </div>
               </div>
             </div>
@@ -834,6 +839,7 @@ export function PartyDetail({ partyId, onBack, onDelete, initialPostId, initialT
               partyAddress={party.address || undefined}
               partyDescription={party.description || undefined}
               partyDateFixed={party.is_date_fixed}
+              maxGuests={party.max_guests}
             />
           )}
           {activeTab === 'carshare' && (
