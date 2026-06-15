@@ -210,6 +210,46 @@ export function CreatePartyModal({ onClose, onSuccess }: CreatePartyModalProps) 
             />
           </div>
 
+          {/* Public / Private + Max guests */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer select-none flex-1 transition ${
+                formData.is_public
+                  ? 'bg-sky-500/10 border-sky-500/40'
+                  : 'bg-neutral-800 border-neutral-700 hover:border-neutral-600'
+              }`}
+              onClick={() => setFormData({ ...formData, is_public: !formData.is_public })}
+            >
+              <input
+                type="checkbox"
+                id="is_public"
+                checked={formData.is_public}
+                onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 rounded border-neutral-700 bg-neutral-900 text-orange-500 focus:ring-orange-500 flex-shrink-0"
+              />
+              <div>
+                <label htmlFor="is_public" className={`text-sm font-medium cursor-pointer ${formData.is_public ? 'text-sky-300' : 'text-neutral-300'}`}>
+                  {t('is_public_label')}
+                </label>
+                <p className="text-xs text-neutral-500 mt-0.5">{t('is_public_hint')}</p>
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-neutral-300 mb-2">
+                {t('max_guests_label')} <span className="text-neutral-500 text-xs">{t('max_guests_hint')}</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={formData.max_guests}
+                onChange={(e) => setFormData({ ...formData, max_guests: e.target.value })}
+                className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition"
+                placeholder={t('max_guests_placeholder')}
+              />
+            </div>
+          </div>
+
           {/* Date */}
           <div className="flex items-center space-x-2">
             <input
